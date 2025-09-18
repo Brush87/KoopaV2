@@ -312,36 +312,46 @@ function App() {
 
   return (
     <div className="App">
-      <h2>Fantasy Hockey Draft Board</h2>
-      <p>Teams: {teamNames.join(', ')}</p>
-      <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
+      <div className="app-header-row">
+        {/* title intentionally removed per design update */}
+      </div>
+      <div className="main-layout">
         {/* Player List */}
-        <div style={{ flex: 1 }}>
+        <div className="players-panel">
           <h3>Available Players ({filteredPlayers.length})</h3>
           <input
+            className="search-input"
             type="text"
             placeholder="Search by first or last name"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            style={{ width: '100%', marginBottom: 8, padding: 4 }}
           />
-          <ul style={{ maxHeight: 400, overflowY: 'auto', border: '1px solid #ccc', padding: 8 }}>
+          <div className="players-list">
             {filteredPlayers.map(player => (
-              <li key={player.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
-                <span>{player.firstName?.default} {player.lastName?.default}</span>
+              <div key={player.id} className="player-row">
+                <div className="name">{player.firstName?.default} {player.lastName?.default}</div>
                 <button onClick={() => draftPlayer(player)}>Draft</button>
-              </li>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
+
         {/* Draft Board */}
-        <div style={{ flex: 2 }}>
+        <div className="board-panel">
+          {/* Timer moved above the board */}
+          <div className="timer-row timer-above">
+            <strong>Current Team: </strong>
+            <div>{teamNames[currentTeamIdx]}</div>
+            <div className={`timer-ring ${timer < 0 ? 'red' : timer < 15 ? 'orange' : ''}`} style={{ color: timer < 0 ? '#ffdddd' : timer < 15 ? '#fff4e6' : 'inherit' }}>
+              {timer >= 0 ? timer : `-${Math.abs(timer)}`}s
+            </div>
+          </div>
           <h3>Draft Board</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${teamNames.length}, 1fr)`, gap: '1rem' }}>
+          <div className="board-columns" style={{ gridTemplateColumns: `repeat(${teamNames.length}, minmax(140px, 1fr))` }}>
             {teamNames.map((team, idx) => (
-              <div key={idx}>
-                <strong>{team}</strong>
-                <div style={{ display: 'grid', gridTemplateRows: `repeat(${ROUNDS}, 1fr)`, gap: '0.5rem' }}>
+              <div key={idx} className="team-column">
+                <div className="team-name">{team}</div>
+                <div className="round-grid">
                   {Array.from({ length: ROUNDS }).map((_, round) => (
                     <DraftCard key={`team${idx}-round${round}-player${(draftedPlayers[idx]||[])[round]?.id ?? round}`}
                       player={(draftedPlayers[idx] || [])[round]} />
@@ -350,12 +360,8 @@ function App() {
               </div>
             ))}
           </div>
-          <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 16 }}>
-            <strong>Current Team: </strong>{teamNames[currentTeamIdx]}
-            <span style={{ fontWeight: 'bold', fontSize: 20, color: timerColor, marginLeft: 16 }}>
-              Timer: {timer >= 0 ? timer : `-${Math.abs(timer)}`}s
-            </span>
-          </div>
+
+          {/* original inline timer removed; timer now displayed above the board */}
         </div>
       </div>
     </div>

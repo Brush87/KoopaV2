@@ -1,38 +1,99 @@
-.App {
-  text-align: center;
+:root{
+  --bg-1: #0f1724; /* deep navy */
+  --bg-2: #1b1630; /* dark purple */
+  --panel: rgba(255,255,255,0.06);
+  --muted: #9aa4b2;
+  --accent: #00d4a6;
+  --card-shadow: 0 6px 18px rgba(2,6,23,0.6);
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+html,body,#root{height:100%;}
+body{
+  margin:0;
+  font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  background: linear-gradient(180deg,var(--bg-1) 0%, var(--bg-2) 60%);
+  color: #e6eef6;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+.App{
+  max-width: 1400px;
+  margin: 24px auto;
+  padding: 20px;
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+.app-header-row{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  margin-bottom:18px;
 }
 
-.App-link {
-  color: #61dafb;
+.app-title{
+  font-size:20px;
+  font-weight:700;
+  letter-spacing:1px;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.main-layout{
+  display:flex;
+  gap:20px;
+  align-items:flex-start;
 }
+
+.players-panel{
+  width:360px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border-radius:12px;
+  padding:12px;
+  box-shadow: var(--card-shadow);
+  border: 1px solid rgba(255,255,255,0.03);
+}
+
+.players-panel h3{margin:6px 0 8px 0}
+.search-input{width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+
+.players-list{margin-top:10px;max-height:640px;overflow:auto;padding-right:6px}
+.player-row{display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:10px;margin-bottom:8px;background:linear-gradient(180deg, rgba(0,0,0,0.25), rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.02)}
+.player-row .name{font-weight:600}
+.player-row button{background:var(--accent);border:none;color:#022;padding:6px 10px;border-radius:8px;font-weight:700;cursor:pointer}
+
+.board-panel{flex:1}
+.board-panel h3{margin:6px 0 12px 0}
+
+.board-grid{display:grid;gap:16px}
+.board-columns{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:16px}
+
+.team-column{background:var(--panel);border-radius:12px;padding:8px;min-width:160px;border:1px solid rgba(255,255,255,0.03)}
+.team-column .team-name{font-weight:700;margin-bottom:8px}
+.round-grid{display:grid;gap:8px}
+
+.card-empty{border:2px dashed rgba(255,255,255,0.06);border-radius:8px;padding:10px;min-height:84px;display:flex;align-items:center;justify-content:center;color:var(--muted);background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent)}
+
+.draft-card{border-radius:10px;padding:10px;min-height:84px;background:linear-gradient(180deg,#072033 0%, #0b2a40 100%);box-shadow:var(--card-shadow);border:1px solid rgba(255,255,255,0.04);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.draft-card img{width:44px;height:44px;border-radius:50%;object-fit:cover;margin-bottom:6px}
+.draft-card .player-name{font-weight:700}
+.draft-card .player-meta{font-size:12px;color:var(--muted);margin-top:4px}
+
+.timer-row{display:flex;align-items:center;gap:12px;margin-top:12px}
+.timer-ring{width:64px;height:64px;border-radius:50%;border:3px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-weight:800}
+.timer-row.timer-above{justify-content:space-between;margin-bottom:14px;padding:10px;border-radius:10px;background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent);border:1px solid rgba(255,255,255,0.03)}
+.timer-row.timer-above .timer-ring{width:72px;height:72px;font-size:20px}
+.timer-ring.orange{border-color:orange}
+.timer-ring.red{border-color:#ff4d4f}
+
+/* Landing page & form tweaks */
+.landing-list{list-style:none;padding:0}
+.landing-list li{display:flex;align-items:center;justify-content:space-between;padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:8px}
+.create-form{background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
+
+/* Small screens */
+@media (max-width: 900px){
+  .main-layout{flex-direction:column}
+  .players-panel{width:100%}
+  .board-panel{width:100%}
+  .board-columns{grid-auto-flow:row}
+}
+
