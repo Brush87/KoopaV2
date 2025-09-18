@@ -36,6 +36,8 @@ app.get('/players', async (req, res) => {
 });
 
 // Get all drafts from MongoDB
+
+// Get all drafts from MongoDB
 app.get('/drafts', async (req, res) => {
   try {
     const drafts = await db.collection('drafts').find({}).toArray();
@@ -45,7 +47,34 @@ app.get('/drafts', async (req, res) => {
   }
 });
 
+// Get a single draft by ID
+app.get('/drafts/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    let query;
+    // Try ObjectId, fallback to string
+    try {
+      const { ObjectId } = require('mongodb');
+      query = { _id: new ObjectId(id) };
+    } catch (e) {
+      query = { id };
+    }
+    let draft = await db.collection('drafts').findOne(query);
+    // If not found by ObjectId, try by string id
+    if (!draft) {
+      draft = await db.collection('drafts').findOne({ id });
+    }
+    if (!draft) {
+      return res.status(404).json({ error: 'Draft not found' });
+    }
+    res.json(draft);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch draft' });
+  }
+});
+
 // Add a new draft
+
 app.post('/drafts', express.json(), async (req, res) => {
   try {
     const draft = req.body;
@@ -53,6 +82,37 @@ app.post('/drafts', express.json(), async (req, res) => {
     res.json({ insertedId: result.insertedId });
   } catch (err) {
     res.status(500).json({ error: 'Failed to save draft' });
+  }
+});
+
+// PATCH endpoint to persist a drafted player to a manager's players array
+app.patch('/drafts/:id/draft', express.json(), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { managerPosition, player } = req.body;
+    if (typeof managerPosition !== 'number' || !player) {
+      return res.status(400).json({ error: 'Missing managerPosition or player' });
+    }
+    const { ObjectId } = require('mongodb');
+    // Find draft by ObjectId or string id
+    let query = { _id: new ObjectId(id) };
+    let draft = await db.collection('drafts').findOne(query);
+    if (!draft) {
+      query = { id };
+      draft = await db.collection('drafts').findOne(query);
+    }
+    if (!draft) {
+      return res.status(404).json({ error: 'Draft not found' });
+    }
+    // Update the correct manager's players array
+    const update = {};
+    update[`managers.${managerPosition}.players`] = player;
+    await db.collection('drafts').updateOne(query, {
+      $push: update
+    });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to persist drafted player' });
   }
 });
 

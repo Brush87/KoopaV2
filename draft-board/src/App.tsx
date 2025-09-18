@@ -2,95 +2,199 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import DraftCard from './DraftCard';
 
-const TEAM_COUNT = 10;
-const DEFAULT_TEAM_NAMES = [
-  'Dragons', 'Sharks', 'Wolves', 'Falcons', 'Titans',
-  'Knights', 'Raptors', 'Vikings', 'Pirates', 'Samurai'
-];
-const NHL_TEAM_ABBRS = [
-  'ANA','UTA','BOS','BUF','CGY','CAR','CHI','COL','CBJ','DAL','DET','EDM','FLA','LAK','MIN','MTL','NSH','NJD','NYI','NYR','OTT','PHI','PIT','SEA','SJS','STL','TBL','TOR','VAN','VGK','WPG','UTA'
-];
+// ...existing code...
+
+function LandingPage({ onContinue }: { onContinue: (draftId: string) => void }) {
+  const [drafts, setDrafts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [draftName, setDraftName] = useState('');
+  const [teamCount, setTeamCount] = useState(10);
+  const [teamNames, setTeamNames] = useState<string[]>(Array(10).fill('').map((_, i) => `Team ${i + 1}`));
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchDrafts() {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch('http://localhost:4000/drafts');
+        if (!res.ok) throw new Error('Failed to fetch drafts');
+        const allDrafts = await res.json();
+        setDrafts(allDrafts.filter((d: any) => !d.completed));
+      } catch (err: any) {
+        setError(err.message || 'Error fetching drafts');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchDrafts();
+  }, []);
+
+  const handleTeamCountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const count = Math.max(2, Math.min(20, Number(e.target.value)));
+    setTeamCount(count);
+    setTeamNames(prev => {
+      const arr = Array(count).fill('').map((_, i) => prev[i] || `Team ${i + 1}`);
+      return arr;
+    });
+  };
+
+  const handleTeamNameChange = (idx: number, value: string) => {
+    setTeamNames(prev => {
+      const arr = [...prev];
+      arr[idx] = value;
+      return arr;
+    });
+  };
+
+  const handleCreateDraft = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreating(true);
+    setCreateError(null);
+    try {
+      const managers = teamNames.map((name, idx) => ({ name, position: idx + 1, players: [] }));
+      const draft = {
+        name: draftName,
+        managers,
+        completed: false,
+        started: new Date()
+      };
+      const res = await fetch('http://localhost:4000/drafts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(draft)
+      });
+      if (!res.ok) throw new Error('Failed to create draft');
+      const result = await res.json();
+      setShowForm(false);
+      setDraftName('');
+      setTeamCount(10);
+      setTeamNames(Array(10).fill('').map((_, i) => `Team ${i + 1}`));
+      // Refresh drafts
+      const allDrafts = await (await fetch('http://localhost:4000/drafts')).json();
+      setDrafts(allDrafts.filter((d: any) => !d.completed));
+      // Select the new draft and render board
+      onContinue(result.insertedId || result._id || result.id);
+    } catch (err: any) {
+      setCreateError(err.message || 'Error creating draft');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  if (loading) return <div className="App"><h2>Loading drafts...</h2></div>;
+  if (error) return <div className="App"><h2>Error loading drafts</h2><p>{error}</p></div>;
+
+  return (
+    <div className="App">
+      <h2>Available Drafts</h2>
+      {drafts.length === 0 ? <p>No active drafts found.</p> : (
+        <ul style={{ listStyle: 'none', padding: 0 }}>
+          {drafts.map(draft => (
+            <li key={draft.id || draft._id} style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 16 }}>
+              <span>Draft ID: {draft.id || draft._id} {draft.name ? `| ${draft.name}` : ''}</span>
+              <button onClick={() => onContinue(draft.id || draft._id)}>Continue</button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <button style={{ marginTop: 24 }} onClick={() => setShowForm(true)}>Create New Draft</button>
+      {showForm && (
+        <form onSubmit={handleCreateDraft} style={{ marginTop: 24, border: '1px solid #ccc', padding: 16, borderRadius: 8, maxWidth: 400 }}>
+          <h3>Create New Draft</h3>
+          <label>Draft Name:<br />
+            <input type="text" value={draftName} onChange={e => setDraftName(e.target.value)} required style={{ width: '100%', marginBottom: 8 }} />
+          </label>
+          <label>Number of Teams:<br />
+            <input type="number" min={2} max={20} value={teamCount} onChange={handleTeamCountChange} required style={{ width: '100%', marginBottom: 8 }} />
+          </label>
+          {Array.from({ length: teamCount }).map((_, idx) => (
+            <div key={idx} style={{ marginBottom: 8 }}>
+              <label>Team {idx + 1} Name:<br />
+                <input type="text" value={teamNames[idx] || ''} onChange={e => handleTeamNameChange(idx, e.target.value)} required style={{ width: '100%' }} />
+              </label>
+            </div>
+          ))}
+          <button type="submit" disabled={creating} style={{ marginTop: 12 }}>Create</button>
+          <button type="button" onClick={() => setShowForm(false)} style={{ marginLeft: 8 }}>Cancel</button>
+          {createError && <p style={{ color: 'red' }}>{createError}</p>}
+        </form>
+      )}
+    </div>
+  );
+}
 
 function App() {
   // Timer constants
   const PICK_TIME = 90; // seconds
-  // Removed unused OVERTIME constant
-  // All hooks at top level
-  const [teamNames, setTeamNames] = useState<string[]>([...DEFAULT_TEAM_NAMES]);
-  const [submitted, setSubmitted] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [players, setPlayers] = useState<any[]>([]);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-  const [draftedPlayers, setDraftedPlayers] = useState<{[teamIdx: number]: any[]}>({});
-  const [availablePlayers, setAvailablePlayers] = useState<any[]>([]);
-  const [currentTeamIdx, setCurrentTeamIdx] = useState(0);
   const ROUNDS = 16;
+  // State for draft selection
+  const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
+  const [teamNames, setTeamNames] = useState<string[]>([]);
+  const [availablePlayers, setAvailablePlayers] = useState<any[]>([]);
+  const [draftedPlayers, setDraftedPlayers] = useState<{[teamIdx: number]: any[]}>({});
+  const [currentTeamIdx, setCurrentTeamIdx] = useState(0);
   const [search, setSearch] = useState('');
   const [timer, setTimer] = useState(PICK_TIME);
   const [timerActive, setTimerActive] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
-  // Handlers
-  const handleChange = (index: number, value: string) => {
-    const updated = [...teamNames];
-    updated[index] = value;
-    setTeamNames(updated);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (teamNames.every(name => name.trim() !== '')) {
-      setSubmitted(true);
-    }
-  };
-
-  // Fetch NHL rosters
+  // When a draft is selected, fetch draft info and players
   useEffect(() => {
-    const fetchRosters = async () => {
+    async function fetchDraftAndPlayers() {
+      if (!selectedDraftId) return;
       setLoading(true);
       setFetchError(null);
       try {
-        const allPlayers: any[] = [];
-        await Promise.all(
-          NHL_TEAM_ABBRS.map(async abbr => {
-            const url = `http://localhost:4000/roster/${abbr}/20252026`;
-            const res = await fetch(url);
-            if (!res.ok) throw new Error(`Failed to fetch ${abbr}`);
-            const data = await res.json();
-            ['forwards','defensemen','goalies'].forEach(type => {
-              if (Array.isArray(data[type])) {
-                allPlayers.push(...data[type].map((p: any) => ({...p, position: type, team: abbr})));
+        // Fetch draft info
+        const draftRes = await fetch(`http://localhost:4000/drafts/${selectedDraftId}`);
+        if (!draftRes.ok) throw new Error('Failed to fetch draft info');
+        const draftData = await draftRes.json();
+        // Set team names from draft managers
+        const managers = Array.isArray(draftData.managers) ? draftData.managers : [];
+        setTeamNames(managers.map((m: any) => m.name));
+        // Fetch all players from backend
+        const playersRes = await fetch('http://localhost:4000/players');
+        if (!playersRes.ok) throw new Error('Failed to fetch players');
+        const playersData = await playersRes.json();
+
+        // Build draftedPlayers and filter availablePlayers
+        const draftedPlayersMap: {[teamIdx: number]: any[]} = {};
+        const draftedPlayerIds = new Set();
+        managers.forEach((manager: any, idx: number) => {
+          if (Array.isArray(manager.players)) {
+            // If pick field exists, use it for slot, else order
+            manager.players.forEach((player: any, i: number) => {
+              draftedPlayerIds.add(player.id);
+              if (!draftedPlayersMap[idx]) draftedPlayersMap[idx] = [];
+              if (typeof player.pick === 'number') {
+                draftedPlayersMap[idx][player.pick] = player;
+              } else {
+                draftedPlayersMap[idx].push(player);
               }
             });
-          })
-        );
-        setPlayers(allPlayers);
+          }
+        });
+        // Filter out drafted players from availablePlayers
+        const filteredAvailablePlayers = playersData.filter((p: any) => !draftedPlayerIds.has(p.id));
+
+        setAvailablePlayers(filteredAvailablePlayers);
+        setDraftedPlayers(draftedPlayersMap);
+        setCurrentTeamIdx(0);
+        setTimer(PICK_TIME);
+        setTimerActive(true);
       } catch (err: any) {
-        setFetchError(err.message || 'Error fetching rosters');
+        setFetchError(err.message || 'Error fetching draft/players');
       } finally {
         setLoading(false);
       }
-    };
-    if (submitted) {
-      fetchRosters();
     }
-  }, [submitted]);
-
-  // Initialize availablePlayers when players are loaded
-  useEffect(() => {
-    if (players.length > 0) {
-      setAvailablePlayers([
-        ...players
-      ].sort((a, b) => {
-        const nameA = (typeof a.firstName === 'string' ? a.firstName : '') + (typeof a.lastName === 'string' ? a.lastName : '');
-        const nameB = (typeof b.firstName === 'string' ? b.firstName : '') + (typeof b.lastName === 'string' ? b.lastName : '');
-        return nameA.localeCompare(nameB);
-      }));
-      setDraftedPlayers({});
-      setCurrentTeamIdx(0);
-      setTimer(PICK_TIME);
-      setTimerActive(true);
-    }
-  }, [players]);
+    fetchDraftAndPlayers();
+  }, [selectedDraftId]);
 
   // Timer countdown effect
   useEffect(() => {
@@ -109,44 +213,42 @@ function App() {
   }, [currentTeamIdx]);
 
   // Draft a player for the current team
-  const draftPlayer = (player: any) => {
+  const draftPlayer = async (player: any) => {
     setAvailablePlayers(prev => prev.filter(p => p.id !== player.id));
     setDraftedPlayers(prev => {
       const teamDrafts = prev[currentTeamIdx] || [];
       return { ...prev, [currentTeamIdx]: [...teamDrafts, player] };
     });
-    setCurrentTeamIdx((prev) => (prev + 1) % TEAM_COUNT);
+    // Persist to backend
+    if (selectedDraftId) {
+      try {
+        await fetch(`http://localhost:4000/drafts/${selectedDraftId}/draft`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            managerPosition: currentTeamIdx,
+            player
+          })
+        });
+      } catch (err) {
+        // Optionally handle error (e.g., show notification)
+        console.error('Failed to persist drafted player', err);
+      }
+    }
+    setCurrentTeamIdx((prev) => (prev + 1) % teamNames.length);
     setTimer(PICK_TIME);
     setTimerActive(true);
   };
 
-  // UI
-  if (!submitted) {
-    return (
-      <div className="App">
-        <h2>Enter the names of all 10 Teams</h2>
-        <form onSubmit={handleSubmit}>
-          {teamNames.map((name, idx) => (
-            <div key={idx}>
-              <label>Team {idx + 1}: </label>
-              <input
-                type="text"
-                value={name}
-                onChange={e => handleChange(idx, e.target.value)}
-                required
-              />
-            </div>
-          ))}
-          <button type="submit">Submit Teams</button>
-        </form>
-      </div>
-    );
+  // Landing page logic
+  if (!selectedDraftId) {
+    return <LandingPage onContinue={setSelectedDraftId} />;
   }
 
   if (loading) {
     return (
       <div className="App">
-        <h2>Loading NHL rosters...</h2>
+        <h2>Loading draft and players...</h2>
         <p>This may take a few moments.</p>
       </div>
     );
@@ -155,7 +257,7 @@ function App() {
   if (fetchError) {
     return (
       <div className="App">
-        <h2>Error loading rosters</h2>
+        <h2>Error loading draft/players</h2>
         <p>{fetchError}</p>
       </div>
     );
@@ -172,7 +274,7 @@ function App() {
       <div className="App">
         <h2>Draft Complete!</h2>
         <p>All players have been drafted.</p>
-        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${TEAM_COUNT}, 1fr)`, gap: '1rem', marginTop: 32 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${teamNames.length}, 1fr)`, gap: '1rem', marginTop: 32 }}>
           {teamNames.map((team, idx) => (
             <div key={idx}>
               <strong>{team}</strong>
@@ -208,8 +310,6 @@ function App() {
     return nameA.localeCompare(nameB);
   });
 
-  console.log('FILTERED PLAYERS:', filteredPlayers);
-
   return (
     <div className="App">
       <h2>Fantasy Hockey Draft Board</h2>
@@ -237,7 +337,7 @@ function App() {
         {/* Draft Board */}
         <div style={{ flex: 2 }}>
           <h3>Draft Board</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${TEAM_COUNT}, 1fr)`, gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${teamNames.length}, 1fr)`, gap: '1rem' }}>
             {teamNames.map((team, idx) => (
               <div key={idx}>
                 <strong>{team}</strong>
