@@ -137,7 +137,9 @@ function App() {
   const [availablePlayers, setAvailablePlayers] = useState<any[]>([]);
   const [draftedPlayers, setDraftedPlayers] = useState<{[teamIdx: number]: any[]}>({});
   const [currentTeamIdx, setCurrentTeamIdx] = useState(0);
+  const [picksMade, setPicksMade] = useState(0);
   const [search, setSearch] = useState('');
+  const [selectedPlayer, setSelectedPlayer] = useState<any | null>(null);
   const [timer, setTimer] = useState(PICK_TIME);
   const [timerActive, setTimerActive] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -165,16 +167,20 @@ function App() {
         // Build draftedPlayers and filter availablePlayers
         const draftedPlayersMap: {[teamIdx: number]: any[]} = {};
         const draftedPlayerIds = new Set();
+        let totalPicks = 0;
         managers.forEach((manager: any, idx: number) => {
           if (Array.isArray(manager.players)) {
             // If pick field exists, use it for slot, else order
             manager.players.forEach((player: any, i: number) => {
+              if (!player) return;
               draftedPlayerIds.add(player.id);
               if (!draftedPlayersMap[idx]) draftedPlayersMap[idx] = [];
               if (typeof player.pick === 'number') {
                 draftedPlayersMap[idx][player.pick] = player;
+                totalPicks++;
               } else {
                 draftedPlayersMap[idx].push(player);
+                totalPicks++;
               }
             });
           }
@@ -184,7 +190,15 @@ function App() {
 
         setAvailablePlayers(filteredAvailablePlayers);
         setDraftedPlayers(draftedPlayersMap);
-        setCurrentTeamIdx(0);
+        // Set picksMade based on drafted players found and compute current team idx for next pick
+        setPicksMade(totalPicks);
+        const teamCount = managers.length || 1;
+        const computeNext = (pickNumber: number, teamCount: number) => {
+          const round = Math.floor(pickNumber / teamCount);
+          const pos = pickNumber % teamCount;
+          return (round % 2 === 1) ? (teamCount - 1 - pos) : pos;
+        };
+        setCurrentTeamIdx(computeNext(totalPicks, teamCount));
         setTimer(PICK_TIME);
         setTimerActive(true);
       } catch (err: any) {
@@ -195,6 +209,41 @@ function App() {
     }
     fetchDraftAndPlayers();
   }, [selectedDraftId]);
+
+  // ResizeObserver: calculate a per-column width so grid never overflows horizontally.
+  const appRef = React.useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!appRef.current) return;
+    const el = appRef.current;
+
+    function updateColumnWidth() {
+      try {
+        const containerWidth = el.clientWidth; // width inside .App
+        const teamCount = Math.max(1, teamNames.length || 10);
+        const gap = Number(getComputedStyle(el).getPropertyValue('--card-gap')) || 10;
+        // total gaps count is (teamCount - 1) * gap
+        const totalGaps = Math.max(0, teamCount - 1) * gap;
+        // reserve some breathing room for paddings/borders: 40px
+        const reserved = 40;
+        const available = Math.max(100, containerWidth - totalGaps - reserved);
+        const perCol = Math.floor(available / teamCount);
+        // set CSS var on el
+        el.style.setProperty('--calculated-card-min', perCol + 'px');
+      } catch (e) {
+        // noop
+      }
+    }
+
+    updateColumnWidth();
+    const ro = new ResizeObserver(() => updateColumnWidth());
+    ro.observe(el);
+    window.addEventListener('resize', updateColumnWidth);
+
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', updateColumnWidth);
+    };
+  }, [teamNames.length]);
 
   // Timer countdown effect
   useEffect(() => {
@@ -235,7 +284,16 @@ function App() {
         console.error('Failed to persist drafted player', err);
       }
     }
-    setCurrentTeamIdx((prev) => (prev + 1) % teamNames.length);
+    // Advance picks using snake order
+    setPicksMade(prev => {
+      const nextPick = prev + 1;
+      const teamCount = teamNames.length || 1;
+      const round = Math.floor(nextPick / teamCount);
+      const pos = nextPick % teamCount;
+      const nextIdx = (round % 2 === 1) ? (teamCount - 1 - pos) : pos;
+      setCurrentTeamIdx(nextIdx);
+      return nextPick;
+    });
     setTimer(PICK_TIME);
     setTimerActive(true);
   };
@@ -310,32 +368,26 @@ function App() {
     return nameA.localeCompare(nameB);
   });
 
+
+  
+
   return (
-    <div className="App">
+    <div className="App" ref={appRef}>
       <div className="app-header-row">
         {/* title intentionally removed per design update */}
       </div>
-      <div className="main-layout">
-        {/* Player List */}
-        <div className="players-panel">
-          <h3>Available Players ({filteredPlayers.length})</h3>
-          <input
-            className="search-input"
-            type="text"
-            placeholder="Search by first or last name"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-          <div className="players-list">
-            {filteredPlayers.map(player => (
-              <div key={player.id} className="player-row">
-                <div className="name">{player.firstName?.default} {player.lastName?.default}</div>
-                <button onClick={() => draftPlayer(player)}>Draft</button>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* top-right controls: searchable select + Draft button */}
+      <div className="top-right-controls">
+        <SearchSelect options={uniquePlayers} onSelect={p => setSelectedPlayer(p)} />
+        <button className="draft-button" disabled={!selectedPlayer} onClick={() => {
+          if (selectedPlayer) {
+            draftPlayer(selectedPlayer);
+            setSelectedPlayer(null);
+          }
+        }}>Draft</button>
+      </div>
 
+      <div className="main-layout">
         {/* Draft Board */}
         <div className="board-panel">
           {/* Timer moved above the board */}
@@ -369,3 +421,43 @@ function App() {
 }
 
 export default App;
+
+// Stable SearchSelect component moved outside of App to avoid remounts on parent rerenders
+type SearchSelectProps = {
+  options: any[];
+  onSelect: (p: any) => void;
+  placeholder?: string;
+};
+
+export const SearchSelect: React.FC<SearchSelectProps> = React.memo(function SearchSelect({ options, onSelect, placeholder = 'Search players...' }) {
+  const [q, setQ] = useState('');
+  const [open, setOpen] = useState(false);
+
+  const results = options.filter(p => {
+    const first = typeof p.firstName?.default === 'string' ? p.firstName.default.toLowerCase() : '';
+    const last = typeof p.lastName?.default === 'string' ? p.lastName.default.toLowerCase() : '';
+    const qq = q.toLowerCase();
+    return first.includes(qq) || last.includes(qq);
+  }).slice(0, 30);
+
+  return (
+    <div className="search-select">
+      <input
+        placeholder={placeholder}
+        value={q}
+        onChange={e => { setQ(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+      />
+      {open && q && (
+        <div className="search-select-dropdown">
+          {results.length === 0 ? <div className="no-results">No players</div> : results.map((p: any) => (
+            <div key={p.id} className="search-select-item" onMouseDown={() => { onSelect(p); setQ((p.firstName?.default || '') + ' ' + (p.lastName?.default || '')); setOpen(false); }}>
+              {p.firstName?.default} {p.lastName?.default}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+});

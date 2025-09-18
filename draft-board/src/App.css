@@ -5,6 +5,9 @@
   --muted: #9aa4b2;
   --accent: #00d4a6;
   --card-shadow: 0 6px 18px rgba(2,6,23,0.6);
+  /* sizing variables for grid/cards */
+  --card-min: 140px; /* base min width for a column */
+  --card-gap: 10px;  /* gap used between columns */
 }
 
 html,body,#root{height:100%;}
@@ -18,9 +21,9 @@ body{
 }
 
 .App{
-  max-width: 1400px;
+  max-width: 100%;
   margin: 24px auto;
-  padding: 20px;
+  padding: 12px 12px; /* reduce horizontal gutters so cards align closer to edges */
 }
 
 .app-header-row{
@@ -39,15 +42,35 @@ body{
 
 .main-layout{
   display:flex;
-  gap:20px;
+  gap:16px; /* slightly tighter overall layout */
   align-items:flex-start;
 }
 
+/* Top-right searchable select and draft button */
+.top-right-controls{
+  position:absolute; /* float over the top-right of the app container */
+  right:12px; /* tighter to match reduced app padding */
+  top:12px;
+  display:flex;
+  gap:8px;
+  align-items:center;
+  justify-content:flex-end;
+  z-index:80;
+}
+.search-select{position:relative;width:320px;min-width:200px}
+.search-select input{width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+.search-select-dropdown{position:absolute;right:0;top:44px;width:100%;max-height:320px;overflow:auto;background:var(--panel);border-radius:8px;border:1px solid rgba(255,255,255,0.03);box-shadow:var(--card-shadow);z-index:60}
+.search-select-item{padding:8px;border-bottom:1px solid rgba(255,255,255,0.02);cursor:pointer}
+.search-select-item:hover{background:rgba(255,255,255,0.02)}
+.no-results{padding:8px;color:var(--muted)}
+.draft-button{padding:8px 12px;border-radius:8px;border:none;background:var(--accent);color:#022;font-weight:800;cursor:pointer}
+.draft-button:disabled{opacity:0.45;cursor:default}
+
 .players-panel{
-  width:360px;
+  width:340px; /* a bit narrower to reclaim left space */
   background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
   border-radius:12px;
-  padding:12px;
+  padding:8px 10px; /* reduce left/right padding slightly */
   box-shadow: var(--card-shadow);
   border: 1px solid rgba(255,255,255,0.03);
 }
@@ -55,25 +78,25 @@ body{
 .players-panel h3{margin:6px 0 8px 0}
 .search-input{width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
 
-.players-list{margin-top:10px;max-height:640px;overflow:auto;padding-right:6px}
-.player-row{display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:10px;margin-bottom:8px;background:linear-gradient(180deg, rgba(0,0,0,0.25), rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.02)}
+.players-list{margin-top:8px;max-height:640px;overflow:auto;padding-right:6px}
+.player-row{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-radius:8px;margin-bottom:6px;background:linear-gradient(180deg, rgba(0,0,0,0.20), rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.02)}
 .player-row .name{font-weight:600}
 .player-row button{background:var(--accent);border:none;color:#022;padding:6px 10px;border-radius:8px;font-weight:700;cursor:pointer}
 
 .board-panel{flex:1}
 .board-panel h3{margin:6px 0 12px 0}
 
-.board-grid{display:grid;gap:16px}
-.board-columns{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:16px}
+.board-grid{display:grid;gap:12px}
+.board-columns{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(calc(var(--calculated-card-min, var(--card-min))), 1fr);gap:var(--card-gap)}
 
-.team-column{background:var(--panel);border-radius:12px;padding:8px;min-width:160px;border:1px solid rgba(255,255,255,0.03)}
-.team-column .team-name{font-weight:700;margin-bottom:8px}
-.round-grid{display:grid;gap:8px}
+.team-column{background:var(--panel);border-radius:12px;padding:8px 0;min-width:calc(var(--calculated-card-min, var(--card-min)));border:1px solid rgba(255,255,255,0.03);display:flex;flex-direction:column}
+.team-column .team-name{font-weight:700;margin:8px 0;text-align:center;width:100%}
+.round-grid{display:grid;gap:10px;padding:0 8px} /* slightly larger gap between rows for breathing room */
 
 .card-empty{border:2px dashed rgba(255,255,255,0.06);border-radius:8px;padding:10px;min-height:84px;display:flex;align-items:center;justify-content:center;color:var(--muted);background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent)}
 
-.draft-card{border-radius:10px;padding:10px;min-height:84px;background:linear-gradient(180deg,#072033 0%, #0b2a40 100%);box-shadow:var(--card-shadow);border:1px solid rgba(255,255,255,0.04);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
-.draft-card img{width:44px;height:44px;border-radius:50%;object-fit:cover;margin-bottom:6px}
+.draft-card{border-radius:10px;padding:10px;min-height:80px;background:linear-gradient(180deg,#072033 0%, #0b2a40 100%);box-shadow:var(--card-shadow);border:1px solid rgba(255,255,255,0.04);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;max-width:calc(calc(var(--calculated-card-min, var(--card-min))) - 10px);width:100%;box-sizing:border-box;margin:0 auto}
+.draft-card img{width:40px;height:40px;border-radius:50%;object-fit:cover;margin-bottom:6px}
 .draft-card .player-name{font-weight:700}
 .draft-card .player-meta{font-size:12px;color:var(--muted);margin-top:4px}
 
@@ -95,5 +118,28 @@ body{
   .players-panel{width:100%}
   .board-panel{width:100%}
   .board-columns{grid-auto-flow:row}
+}
+
+/* Larger screens tweaks */
+@media (min-width: 1200px){
+  .App{padding:20px 32px}
+  .top-right-controls{right:40px}
+  .team-column{min-width:170px}
+  .search-select{width:360px}
+  :root{--card-min:170px;--card-gap:12px}
+}
+
+/* Small screens: move top-right controls into flow and shrink select */
+@media (max-width: 1100px){
+  .top-right-controls{position:relative;right:auto;top:auto;margin-bottom:12px;justify-content:flex-end}
+  .search-select{width:240px}
+  .draft-button{padding:6px 10px}
+  :root{--card-min:130px;--card-gap:10px}
+}
+
+@media (max-width: 700px){
+  .search-select{width:100%}
+  .top-right-controls{justify-content:flex-start}
+  :root{--card-min:120px;--card-gap:8px}
 }
 
