@@ -7,6 +7,8 @@ import PlayerStatsModal from './PlayerStatsModal';
 
 // ...existing code...
 
+const API_BASE = (process.env.REACT_APP_API_URL || 'http://localhost:4000').replace(/\/$/, '');
+
 function LandingPage({ onContinue }: { onContinue: (draftId: string) => void }) {
   const [drafts, setDrafts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,7 +25,7 @@ function LandingPage({ onContinue }: { onContinue: (draftId: string) => void }) 
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch('http://localhost:4000/drafts');
+  const res = await fetch(`${API_BASE}/drafts`);
         if (!res.ok) throw new Error('Failed to fetch drafts');
         const allDrafts = await res.json();
         setDrafts(allDrafts.filter((d: any) => !d.completed));
@@ -38,10 +40,10 @@ function LandingPage({ onContinue }: { onContinue: (draftId: string) => void }) 
 
   const deleteDraft = async (draftId: string) => {
     try {
-      const res = await fetch(`http://localhost:4000/drafts/${draftId}`, { method: 'DELETE' });
+  const res = await fetch(`${API_BASE}/drafts/${draftId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete draft');
       // refresh list
-      const allDrafts = await (await fetch('http://localhost:4000/drafts')).json();
+  const allDrafts = await (await fetch(`${API_BASE}/drafts`)).json();
       setDrafts(allDrafts.filter((d: any) => !d.completed));
     } catch (err: any) {
       window.alert(err.message || 'Error deleting draft');
@@ -87,7 +89,7 @@ function LandingPage({ onContinue }: { onContinue: (draftId: string) => void }) 
         completed: false,
         started: new Date()
       };
-      const res = await fetch('http://localhost:4000/drafts', {
+  const res = await fetch(`${API_BASE}/drafts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(draft)
@@ -99,7 +101,7 @@ function LandingPage({ onContinue }: { onContinue: (draftId: string) => void }) 
     setTeamCount(10);
       setTeamNames(Array(10).fill('').map((_, i) => `Team ${i + 1}`));
       // Refresh drafts
-      const allDrafts = await (await fetch('http://localhost:4000/drafts')).json();
+  const allDrafts = await (await fetch(`${API_BASE}/drafts`)).json();
       setDrafts(allDrafts.filter((d: any) => !d.completed));
       // Select the new draft and render board
       onContinue(result.insertedId || result._id || result.id);
@@ -213,7 +215,7 @@ function App() {
       setFetchError(null);
       try {
         // Fetch draft info
-        const draftRes = await fetch(`http://localhost:4000/drafts/${selectedDraftId}`);
+  const draftRes = await fetch(`${API_BASE}/drafts/${selectedDraftId}`);
         if (!draftRes.ok) throw new Error('Failed to fetch draft info');
         const draftData = await draftRes.json();
         setDraftName(draftData.name || null);
@@ -221,7 +223,7 @@ function App() {
         const managers = Array.isArray(draftData.managers) ? draftData.managers : [];
         setTeamNames(managers.map((m: any) => m.name));
         // Fetch all players from backend
-        const playersRes = await fetch('http://localhost:4000/players');
+  const playersRes = await fetch(`${API_BASE}/players`);
         if (!playersRes.ok) throw new Error('Failed to fetch players');
         const playersData = await playersRes.json();
 
@@ -369,7 +371,7 @@ function App() {
     // Persist to backend
     if (selectedDraftId) {
       try {
-        await fetch(`http://localhost:4000/drafts/${selectedDraftId}/draft`, {
+  await fetch(`${API_BASE}/drafts/${selectedDraftId}/draft`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -396,7 +398,7 @@ function App() {
         (async () => {
           try {
             if (selectedDraftId) {
-              const res = await fetch(`http://localhost:4000/drafts/${selectedDraftId}/complete`, { method: 'POST' });
+              const res = await fetch(`${API_BASE}/drafts/${selectedDraftId}/complete`, { method: 'POST' });
               if (res.ok) {
                 const text = await res.text();
                 // Trigger client download
@@ -449,7 +451,7 @@ function App() {
     const managerPosition = (round % 2 === 1) ? (teamCount - 1 - pos) : pos;
 
     try {
-      const res = await fetch(`http://localhost:4000/drafts/${selectedDraftId}/undraft`, {
+  const res = await fetch(`${API_BASE}/drafts/${selectedDraftId}/undraft`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ managerPosition, pickIndex: undefined })

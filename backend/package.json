@@ -1,4 +1,10 @@
 {
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "seed:one-away": "node seed_one_away_draft.js"
+  },
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",

@@ -22,6 +22,12 @@ applyTo: '**'
 ## Context7 Research History
 - (none recorded)
 
+## Deployment & Config Notes
+- Frontend uses REACT_APP_API_URL to point to backend (defaults to http://localhost:4000 when unset).
+- Backend requires MONGO_URI environment variable (MongoDB connection string).
+- Backend seed script available: `backend/seed_one_away_draft.js` and npm script `seed:one-away` in `backend/package.json`.
+
+
 ## Conversation History
 - Added Pause/Resume control to `src/App.tsx` to pause timer and prevent auto-draft; Draft button disabled while paused.
 

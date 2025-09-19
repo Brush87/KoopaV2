@@ -14,8 +14,9 @@ export default function PlayerStatsModal({ open, onClose, playerId, playerName, 
     setError(null);
     (async () => {
       try {
-        const posQuery = playerPosition ? `?position=${encodeURIComponent(playerPosition)}` : '';
-        const res = await fetch(`http://localhost:4000/stats/${playerId}${posQuery}`);
+  const posQuery = playerPosition ? `?position=${encodeURIComponent(playerPosition)}` : '';
+  const base = process.env.REACT_APP_API_URL || 'http://localhost:4000';
+  const res = await fetch(`${base.replace(/\/$/, '')}/stats/${playerId}${posQuery}`);
         if (!res.ok) throw new Error('Failed to fetch stats');
         const json = await res.json();
         const fetchedRows: StatRow[] = Array.isArray(json.data) ? json.data : [];

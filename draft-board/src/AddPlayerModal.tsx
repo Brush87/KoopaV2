@@ -36,7 +36,8 @@ export default function AddPlayerModal({ open, onClose, onCreate }: Props) {
     };
     (async () => {
       try {
-        const res = await fetch('http://localhost:4000/players', {
+        const base = process.env.REACT_APP_API_URL || 'http://localhost:4000';
+        const res = await fetch(`${base.replace(/\/$/, '')}/players`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(player)
