@@ -107,14 +107,50 @@ body{
 
 /* Modal styles */
 .modal-backdrop{position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(2,6,23,0.85);display:flex;align-items:center;justify-content:center;z-index:200}
-.modal-card{background:linear-gradient(180deg, rgba(6,10,18,0.98), rgba(10,14,22,0.98));padding:18px;border-radius:12px;width:360px;box-shadow:var(--card-shadow);border:1px solid rgba(255,255,255,0.04)}
-.modal-card h3{margin-top:0}
+.modal-card{background:linear-gradient(180deg, rgba(6,10,18,0.98), rgba(10,14,22,0.98));padding:22px 18px 18px 18px;border-radius:12px;width:360px;box-shadow:var(--card-shadow);border:1px solid rgba(255,255,255,0.04);position:relative}
+.modal-card h3{margin:4px 0 12px 0}
 .modal-card form{display:flex;flex-direction:column;gap:8px}
 .modal-card label{display:flex;flex-direction:column;font-size:13px;color:var(--muted)}
 .modal-card input,.modal-card select{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:rgba(6,10,18,0.9);color:inherit}
 .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
 .modal-cancel-button{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);padding:8px 12px;border-radius:8px;cursor:pointer}
 .modal-cancel-button:hover{background:rgba(255,255,255,0.02);color:#fff}
+
+/* Modal close (X) button in top-right of modal-card */
+/* reposition close button slightly lower and inset from the corner to align with header */
+.modal-close-button{position:absolute;right:14px;top:16px;width:36px;height:36px;border-radius:8px;border:none;background:rgba(255,255,255,0.02);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.modal-close-button:hover{background:rgba(255,255,255,0.04);color:#fff}
+.modal-close-button:focus{outline:2px solid rgba(0,212,166,0.12)}
+
+/* Player image / emoji spot in top-left of modal */
+.modal-player-spot{position:absolute;left:14px;top:16px;width:48px;height:48px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.02);overflow:hidden}
+.modal-header{display:flex;align-items:center;gap:14px;padding:12px 8px}
+.modal-title{flex:1;margin:0;font-size:18px;padding-left:6px}
+
+/* Body that contains the stats table and is scrollable while header/footer remain visible */
+.modal-stats-body{overflow:auto;max-height:62vh;padding:12px 6px}
+.modal-stats-inner{max-width:100%;background:transparent;padding:8px}
+
+.modal-footer{display:flex;justify-content:flex-end;padding:14px 8px 8px}
+.modal-player-spot img{width:100%;height:100%;object-fit:cover;border-radius:8px}
+.modal-player-emoji{font-size:28px;line-height:1}
+
+/* Stats table presentation */
+.stats-table{width:100%;border-collapse:collapse;font-variant-numeric: tabular-nums}
+.stats-table th,.stats-table td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:center;white-space:nowrap}
+/* Alternating row colors: subtle light and dark bands */
+.stats-table tr:nth-child(odd){background:rgba(255,255,255,0.02)}
+.stats-table tr:nth-child(even){background:rgba(0,0,0,0.06)}
+.stats-table thead th{background:transparent;border-bottom:2px solid rgba(255,255,255,0.06)}
+/* Keep header text centered (table cells are centered by default now) */
+.stats-table thead th{text-align:center}
+
+/* Emphasize Team and Goals columns to indicate start of main stats */
+.stats-team-col{padding-left:12px;border-right:3px solid rgba(255,255,255,0.06);padding-right:12px}
+.stats-goals-col{border-left:3px solid rgba(255,255,255,0.08);padding-left:14px}
+
+/* Slightly tighten number columns and right-align numeric values for readability */
+.stats-table td.numeric, .stats-table th.numeric{text-align:center}
 
 .players-panel{
   width:340px; /* a bit narrower to reclaim left space */

@@ -12,7 +12,8 @@ type Props = {
 export default function ConfirmModal({ message, onConfirm, onCancel, confirmLabel = 'Delete', cancelLabel = 'Cancel' }: Props) {
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true">
-      <div className="modal">
+      <div className="modal" style={{ position: 'relative' }}>
+        <button className="modal-close-button" aria-label="Close" onClick={onCancel}>×</button>
         <div className="modal-message">{message}</div>
         <div className="modal-buttons">
           <button className="modal-confirm" onClick={onConfirm}>{confirmLabel}</button>

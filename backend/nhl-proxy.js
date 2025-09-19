@@ -217,8 +217,13 @@ app.listen(PORT, () => {
 app.get('/stats/:playerId', async (req, res) => {
   try {
     const { playerId } = req.params;
+    const { position } = req.query;
     if (!playerId) return res.status(400).json({ error: 'Missing playerId' });
-    const url = `https://api.nhle.com/stats/rest/en/skater/summary?cayenneExp=playerId=${playerId}`;
+    // Choose endpoint depending on position (goalies use goalie endpoint)
+    const base = 'https://api.nhle.com/stats/rest/en';
+    const url = (position === 'G')
+      ? `${base}/goalie/summary?sort=seasonId&cayenneExp=playerId=${playerId}`
+      : `${base}/skater/summary?sort=seasonId&cayenneExp=playerId=${playerId}`;
     const fetch = global.fetch || (await import('node-fetch')).default;
     const r = await fetch(url);
     if (!r.ok) {

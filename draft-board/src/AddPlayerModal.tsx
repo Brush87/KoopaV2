@@ -63,7 +63,11 @@ export default function AddPlayerModal({ open, onClose, onCreate }: Props) {
 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
-      <div className="modal-card">
+      <div className="modal-card" style={{ position: 'relative' }}>
+        <div className="modal-player-spot">
+          <span className="modal-player-emoji">🤢</span>
+        </div>
+        <button className="modal-close-button" aria-label="Close" onClick={onClose}>×</button>
         <h3>Add New Player</h3>
         <form onSubmit={submit}>
           <label>Firstname

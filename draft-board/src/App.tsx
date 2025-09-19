@@ -187,6 +187,9 @@ function App() {
   const [statsOpen, setStatsOpen] = useState(false);
   const [statsPlayerId, setStatsPlayerId] = useState<string | number | null>(null);
   const [statsPlayerName, setStatsPlayerName] = useState<string | undefined>(undefined);
+  const [statsPlayerImage, setStatsPlayerImage] = useState<string | null>(null);
+  const [statsPlayerEmoji, setStatsPlayerEmoji] = useState<string | null>(null);
+  const [statsPlayerPosition, setStatsPlayerPosition] = useState<string | null>(null);
 
   // When a draft is selected, fetch draft info and players
   useEffect(() => {
@@ -641,6 +644,9 @@ function App() {
                           setStatsPlayerId(pid);
                           const name = `${playerAtSlot.firstName?.default || ''} ${playerAtSlot.lastName?.default || ''}`.trim();
                           setStatsPlayerName(name || undefined);
+                          setStatsPlayerImage(playerAtSlot.headshot || playerAtSlot.image || null);
+                          setStatsPlayerEmoji(playerAtSlot.emoji || null);
+                          setStatsPlayerPosition(playerAtSlot.positionCode || null);
                           setStatsOpen(true);
                         }
                       }} style={{ cursor: playerAtSlot ? 'pointer' : 'default' }}>
@@ -656,7 +662,7 @@ function App() {
           {/* original inline timer removed; timer now displayed above the board */}
         </div>
       </div>
-      <PlayerStatsModal open={statsOpen} onClose={() => setStatsOpen(false)} playerId={statsPlayerId || ''} playerName={statsPlayerName} />
+  <PlayerStatsModal open={statsOpen} onClose={() => setStatsOpen(false)} playerId={statsPlayerId || ''} playerName={statsPlayerName} playerImage={statsPlayerImage} playerEmoji={statsPlayerEmoji} playerPosition={statsPlayerPosition} />
     </div>
   );
 }
