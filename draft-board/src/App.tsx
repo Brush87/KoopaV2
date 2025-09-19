@@ -94,9 +94,9 @@ function LandingPage({ onContinue }: { onContinue: (draftId: string) => void }) 
       });
       if (!res.ok) throw new Error('Failed to create draft');
       const result = await res.json();
-      setShowForm(false);
-      setDraftName('');
-      setTeamCount(10);
+    setShowForm(false);
+    setDraftName('');
+    setTeamCount(10);
       setTeamNames(Array(10).fill('').map((_, i) => `Team ${i + 1}`));
       // Refresh drafts
       const allDrafts = await (await fetch('http://localhost:4000/drafts')).json();
@@ -115,40 +115,52 @@ function LandingPage({ onContinue }: { onContinue: (draftId: string) => void }) 
 
   return (
     <div className="App">
-      <h2>Available Drafts</h2>
-      {drafts.length === 0 ? <p>No active drafts found.</p> : (
-        <ul style={{ listStyle: 'none', padding: 0 }}>
+      <div className="landing-wrap">
+        <div className="landing-card">
+          <h2>Available Drafts</h2>
+          {drafts.length === 0 ? <p className="muted">No active drafts found.</p> : (
+        <ul className="landing-list">
           {drafts.map(draft => (
-            <li key={draft.id || draft._id} style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 16 }}>
-              <span>Draft ID: {draft.id || draft._id} {draft.name ? `| ${draft.name}` : ''}</span>
-              <button onClick={() => onContinue(draft.id || draft._id)}>Continue</button>
-              <button style={{ marginLeft: 8, background: '#e24d4d', color: '#fff', border: 'none', padding: '6px 10px', borderRadius: 6 }} onClick={() => confirmDelete(draft.id || draft._id)}>Delete</button>
+            <li key={draft.id || draft._id} className="landing-item">
+              <div className="landing-item-info">Draft ID: {draft.id || draft._id} {draft.name ? `| ${draft.name}` : ''}</div>
+              <div className="landing-item-actions">
+                <button className="btn btn-primary" onClick={() => onContinue(draft.id || draft._id)}>Continue</button>
+                <button className="btn btn-danger" onClick={() => confirmDelete(draft.id || draft._id)}>Delete</button>
+              </div>
             </li>
           ))}
         </ul>
-      )}
-      <button style={{ marginTop: 24 }} onClick={() => setShowForm(true)}>Create New Draft</button>
-      {showForm && (
-        <form onSubmit={handleCreateDraft} style={{ marginTop: 24, border: '1px solid #ccc', padding: 16, borderRadius: 8, maxWidth: 400 }}>
-          <h3>Create New Draft</h3>
-          <label>Draft Name:<br />
-            <input type="text" value={draftName} onChange={e => setDraftName(e.target.value)} required style={{ width: '100%', marginBottom: 8 }} />
-          </label>
-          <label>Number of Teams:<br />
-            <input type="number" min={2} max={20} value={teamCount} onChange={handleTeamCountChange} required style={{ width: '100%', marginBottom: 8 }} />
-          </label>
-          {Array.from({ length: teamCount }).map((_, idx) => (
-            <div key={idx} style={{ marginBottom: 8 }}>
-              <label>Team {idx + 1} Name:<br />
-                <input type="text" value={teamNames[idx] || ''} onChange={e => handleTeamNameChange(idx, e.target.value)} required style={{ width: '100%' }} />
+          )}
+          <div className="create-cta-row">
+            <button className="btn btn-secondary" onClick={() => setShowForm(true)}>Create New Draft</button>
+          </div>
+          {showForm && (
+            <form onSubmit={handleCreateDraft} className="create-form">
+              <h3>Create New Draft</h3>
+              <label className="form-field">Draft Name:
+                <input className="form-input" type="text" value={draftName} onChange={e => setDraftName(e.target.value)} required />
               </label>
-            </div>
-          ))}
-          <button type="submit" disabled={creating} style={{ marginTop: 12 }}>Create</button>
-          <button type="button" onClick={() => setShowForm(false)} style={{ marginLeft: 8 }}>Cancel</button>
-          {createError && <p style={{ color: 'red' }}>{createError}</p>}
+              <label className="form-field">Number of Teams:
+                <input className="form-input" type="number" min={2} max={20} value={teamCount} onChange={handleTeamCountChange} required />
+              </label>
+          <div className="team-names-grid">
+            {Array.from({ length: teamCount }).map((_, idx) => (
+              <div key={idx} className="team-name-row">
+                <label>Team {idx + 1} Name:
+                  <input className="form-input" type="text" value={teamNames[idx] || ''} onChange={e => handleTeamNameChange(idx, e.target.value)} required />
+                </label>
+              </div>
+            ))}
+          </div>
+          <div className="form-actions">
+            <button className="btn btn-primary" type="submit" disabled={creating}>Create</button>
+            <button className="btn btn-ghost" type="button" onClick={() => setShowForm(false)}>Cancel</button>
+          </div>
+          {createError && <p className="form-error">{createError}</p>}
         </form>
       )}
+        </div>
+      </div>
       {confirmingDeleteId && (
         <ConfirmModal
           message="Delete this draft? This cannot be undone."
@@ -169,6 +181,7 @@ function App() {
   // State for draft selection
   const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
   const [teamNames, setTeamNames] = useState<string[]>([]);
+  const [draftName, setDraftName] = useState<string | null>(null);
   const [availablePlayers, setAvailablePlayers] = useState<any[]>([]);
   const [draftedPlayers, setDraftedPlayers] = useState<{[teamIdx: number]: any[]}>({});
   const [currentTeamIdx, setCurrentTeamIdx] = useState(0);
@@ -180,6 +193,7 @@ function App() {
   const [paused, setPaused] = useState(false);
   const pausedRef = useRef(paused);
   useEffect(() => { pausedRef.current = paused; }, [paused]);
+  const [draftCompleted, setDraftCompleted] = useState(false);
   const [autoDraftedForPick, setAutoDraftedForPick] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -202,6 +216,7 @@ function App() {
         const draftRes = await fetch(`http://localhost:4000/drafts/${selectedDraftId}`);
         if (!draftRes.ok) throw new Error('Failed to fetch draft info');
         const draftData = await draftRes.json();
+        setDraftName(draftData.name || null);
         // Set team names from draft managers
         const managers = Array.isArray(draftData.managers) ? draftData.managers : [];
         setTeamNames(managers.map((m: any) => m.name));
@@ -306,6 +321,7 @@ function App() {
   useEffect(() => {
     if (timer > -30) return;
     if (paused) return; // don't auto-draft while paused
+    if (draftCompleted) return; // don't auto-draft after completion
     // If we've already auto-drafted for this pick number, skip
     if (autoDraftedForPick === picksMade) return;
 
@@ -370,15 +386,57 @@ function App() {
     setPicksMade(prev => {
       const nextPick = prev + 1;
       const teamCount = teamNames.length || 1;
+      const totalPicksPossible = (ROUNDS * teamCount);
       const round = Math.floor(nextPick / teamCount);
       const pos = nextPick % teamCount;
       const nextIdx = (round % 2 === 1) ? (teamCount - 1 - pos) : pos;
       setCurrentTeamIdx(nextIdx);
+      // If we've reached or exceeded total picks, mark draft completed
+      if (nextPick >= totalPicksPossible) {
+        (async () => {
+          try {
+            if (selectedDraftId) {
+              const res = await fetch(`http://localhost:4000/drafts/${selectedDraftId}/complete`, { method: 'POST' });
+              if (res.ok) {
+                const text = await res.text();
+                // Trigger client download
+                const filename = (draftName || 'draft-results').replace(/[^a-z0-9\-_. ]/ig, '') + '.txt';
+                downloadTextFile(filename, text);
+              } else {
+                console.error('Completion endpoint returned', res.status);
+              }
+            }
+          } catch (e) {
+            console.error('Failed to fetch draft completion text', e);
+          } finally {
+            setDraftCompleted(true);
+            setTimerActive(false);
+            setTimer(0);
+          }
+        })();
+      }
       return nextPick;
     });
     setTimer(PICK_TIME);
     setTimerActive(true);
   };
+
+  // Helper to trigger a client download of a text file
+  function downloadTextFile(filename: string, text: string) {
+    try {
+      const blob = new Blob([text], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Failed to download file', e);
+    }
+  }
 
   // Undo (remove) the last pick and return player to available pool
   const undoLastPick = async () => {
@@ -539,6 +597,7 @@ function App() {
           title="Undo last pick"
           aria-label="Undo last pick"
           onClick={async () => {
+            if (draftCompleted) return;
             await undoLastPick();
           }}
         >
@@ -548,7 +607,7 @@ function App() {
         </button>
         <button
           className="pause-button"
-          onClick={() => { setPaused(p => !p); }}
+          onClick={() => { if (!draftCompleted) setPaused(p => !p); }}
           aria-pressed={paused}
           aria-label={paused ? 'Resume draft timer' : 'Pause draft timer'}
           title={paused ? 'Resume' : 'Pause'}
@@ -571,7 +630,8 @@ function App() {
           onSelect={p => setSelectedPlayer(p)}
           onEnter={(p: any) => { if (p) { draftPlayer(p); setSelectedPlayer(null); } }}
         />
-        <button className="draft-button" disabled={!selectedPlayer || paused} onClick={() => {
+        <button className="draft-button" disabled={!selectedPlayer || paused || draftCompleted} onClick={() => {
+          if (draftCompleted) return;
           if (selectedPlayer) {
             draftPlayer(selectedPlayer);
             setSelectedPlayer(null);
@@ -599,20 +659,26 @@ function App() {
               <div className="current-team-label">Current Team</div>
               <div className="current-team-name">{teamNames[currentTeamIdx]}</div>
             </div>
-            <div style={{ width: 92, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-              {timer < 0 && <div className="beats-left">BEATS</div>}
-              <div className={`timer-ring ${timer < 0 ? 'red' : timer < 15 ? 'orange' : ''}`} style={{ color: timer < 0 ? '#ff4444' : timer < 15 ? '#fff4e6' : 'inherit' }}>
-                <svg width="72" height="72" viewBox="0 0 72 72">
-                  <defs />
-                  <g transform="translate(36,36)">
-                    <circle r="30" cx="0" cy="0" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
-                    <circle r="30" cx="0" cy="0" fill="none" stroke="currentColor" strokeWidth={6} strokeDasharray={RING_CIRC} strokeDashoffset={ringOffset} strokeLinecap="round" transform="rotate(-90)" />
-                  </g>
-                </svg>
-                <div className="timer-label">{timer >= 0 ? timer : `-${Math.abs(timer)}`}s</div>
+              <div style={{ width: 92, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                {draftCompleted ? (
+                  <div className="draft-completed">DRAFT COMPLETED</div>
+                ) : (
+                  <>
+                    {timer < 0 && <div className="beats-left">BEATS</div>}
+                    <div className={`timer-ring ${timer < 0 ? 'red' : timer < 15 ? 'orange' : ''}`} style={{ color: timer < 0 ? '#ff4444' : timer < 15 ? '#fff4e6' : 'inherit' }}>
+                      <svg width="72" height="72" viewBox="0 0 72 72">
+                        <defs />
+                        <g transform="translate(36,36)">
+                          <circle r="30" cx="0" cy="0" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
+                          <circle r="30" cx="0" cy="0" fill="none" stroke="currentColor" strokeWidth={6} strokeDasharray={RING_CIRC} strokeDashoffset={ringOffset} strokeLinecap="round" transform="rotate(-90)" />
+                        </g>
+                      </svg>
+                      <div className="timer-label">{timer >= 0 ? timer : `-${Math.abs(timer)}`}s</div>
+                    </div>
+                    {timer < 0 && <div className="beats-right">BEATS</div>}
+                  </>
+                )}
               </div>
-              {timer < 0 && <div className="beats-right">BEATS</div>}
-            </div>
             <div style={{ flex: 1, textAlign: 'right' }}>
               <div className="current-pick-label">Current Pick</div>
               <div className="current-pick-value">{picksMade + 1}</div>
@@ -639,8 +705,14 @@ function App() {
                     const playerAtSlot = (draftedPlayers[idx] || [])[round];
                     return (
                       <div key={`team${idx}-round${round}-player${playerAtSlot?.id ?? round}`} onClick={() => {
-                        if (playerAtSlot && (playerAtSlot.id || playerAtSlot._id)) {
-                          const pid = playerAtSlot.id || playerAtSlot._id;
+                        // Do not open stats modal for special POOP players or for newly-created unsaved players
+                        if (!playerAtSlot) return;
+                        const isPoop = playerAtSlot.positionCode === 'POOP';
+                        const idVal = playerAtSlot.id || playerAtSlot._id;
+                        const isCreated = typeof idVal === 'string' && idVal.startsWith('new-');
+                        if (isPoop || isCreated) return;
+                        if (idVal) {
+                          const pid = idVal;
                           setStatsPlayerId(pid);
                           const name = `${playerAtSlot.firstName?.default || ''} ${playerAtSlot.lastName?.default || ''}`.trim();
                           setStatsPlayerName(name || undefined);
@@ -649,7 +721,7 @@ function App() {
                           setStatsPlayerPosition(playerAtSlot.positionCode || null);
                           setStatsOpen(true);
                         }
-                      }} style={{ cursor: playerAtSlot ? 'pointer' : 'default' }}>
+                        }} style={{ cursor: (playerAtSlot && (playerAtSlot.positionCode === 'POOP' || (typeof (playerAtSlot.id || playerAtSlot._id) === 'string' && (playerAtSlot.id || playerAtSlot._id).startsWith('new-')))) ? 'default' : (playerAtSlot ? 'pointer' : 'default') }}>
                         <DraftCard player={playerAtSlot} pickNumber={overallPick} />
                       </div>
                     );

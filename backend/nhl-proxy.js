@@ -182,6 +182,55 @@ app.patch('/drafts/:id/undraft', express.json(), async (req, res) => {
   }
 });
 
+// Mark draft complete and send results email (best-effort)
+app.post('/drafts/:id/complete', express.json(), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { ObjectId } = require('mongodb');
+    let query;
+    try {
+      query = { _id: new ObjectId(id) };
+    } catch (e) {
+      query = { id };
+    }
+    let draft = await db.collection('drafts').findOne(query);
+    if (!draft) {
+      draft = await db.collection('drafts').findOne({ id });
+    }
+    if (!draft) return res.status(404).json({ error: 'Draft not found' });
+
+    // Mark draft as completed in DB
+    await db.collection('drafts').updateOne(query, { $set: { completed: true, completedAt: new Date() } });
+
+    // Build a simple results summary
+    const managers = Array.isArray(draft.managers) ? draft.managers : [];
+    const lines = [];
+    lines.push(`Draft Results for: ${draft.name || (draft.id || draft._id)}`);
+    lines.push('');
+    managers.forEach((m, idx) => {
+      lines.push(`${m.name || `Manager ${idx + 1}`}:`);
+      const players = Array.isArray(m.players) ? m.players : [];
+      players.forEach((p, i) => {
+        const name = `${p.firstName?.default || ''} ${p.lastName?.default || ''}`.trim() || p.id || 'Unknown';
+        const pos = p.positionCode || '??';
+        const team = p.team || p.teamName || '';
+        const teamStr = team ? ` — ${team}` : '';
+        lines.push(`  ${i + 1}. ${name} (${pos}${teamStr})`);
+      });
+      lines.push('');
+    });
+
+      const textBody = lines.join('\n');
+
+      // Return plain-text draft results for client download
+      console.log('Draft completed; returning results text to client.');
+      res.type('text/plain').send(textBody);
+  } catch (err) {
+    console.error('Complete draft failed', err);
+    res.status(500).json({ error: 'Failed to complete draft' });
+  }
+});
+
 // Delete a draft by ID
 app.delete('/drafts/:id', async (req, res) => {
   try {
