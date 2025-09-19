@@ -6,7 +6,7 @@
   --accent: #00d4a6;
   --card-shadow: 0 6px 18px rgba(2,6,23,0.6);
   /* sizing variables for grid/cards */
-  --card-min: 140px; /* base min width for a column */
+  --card-min: 120px; /* base min width for a column (reduced to fit rounds column) */
   --card-gap: 10px;  /* gap used between columns */
 }
 
@@ -34,6 +34,32 @@ body{
   margin-bottom:18px;
 }
 
+.header-with-timer{align-items:center}
+.timer-ring{position:relative;width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.timer-ring svg{position:absolute;left:0;top:0}
+.timer-label{position:relative;z-index:2;font-weight:800}
+
+.current-team-label{font-size:12px;color:var(--muted);}
+.current-team-name{font-size:18px;font-weight:800;margin-top:2px}
+.current-pick-label{font-size:12px;color:var(--muted)}
+.current-pick-value{font-size:18px;font-weight:800;margin-top:2px}
+
+.beats-left, .beats-right{position:absolute;top:50%;transform:translateY(-50%);font-weight:900;color:#ff3b3b;font-size:56px;letter-spacing:2px;opacity:0.95;padding:0 10px}
+.beats-left{left:-220px}
+.beats-right{right:-220px}
+
+@keyframes beats-pulse{
+  0%{transform:translateY(-50%) scale(1)}
+  50%{transform:translateY(-50%) scale(1.08)}
+  100%{transform:translateY(-50%) scale(1)}
+}
+.beats-left, .beats-right{animation:beats-pulse 1s ease-in-out infinite}
+
+/* Hide or reduce BEATS on very small screens to avoid overlap */
+@media (max-width: 700px){
+  .beats-left, .beats-right{display:none}
+}
+
 .app-title{
   font-size:20px;
   font-weight:700;
@@ -48,23 +74,47 @@ body{
 
 /* Top-right searchable select and draft button */
 .top-right-controls{
-  position:absolute; /* float over the top-right of the app container */
+  position:fixed; /* pin to the viewport top-right so controls remain visible while scrolling */
   right:12px; /* tighter to match reduced app padding */
   top:12px;
   display:flex;
   gap:8px;
   align-items:center;
   justify-content:flex-end;
-  z-index:80;
+  z-index:120; /* sit above other content when fixed */
+  padding:6px; /* small padding to give breathing room when fixed */
+  border-radius:10px;
+  background:rgba(8,12,18,0.18); /* subtle backdrop for readability */
+  backdrop-filter:blur(6px);
 }
-.search-select{position:relative;width:320px;min-width:200px}
-.search-select input{width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
-.search-select-dropdown{position:absolute;right:0;top:44px;width:100%;max-height:320px;overflow:auto;background:var(--panel);border-radius:8px;border:1px solid rgba(255,255,255,0.03);box-shadow:var(--card-shadow);z-index:60}
+.pause-button{display:inline-flex;align-items:center;justify-content:center;width:40px;height:36px;border-radius:8px;border:none;background:rgba(255,255,255,0.04);color:var(--muted);cursor:pointer}
+.pause-button:hover{background:rgba(255,255,255,0.06);color:var(--accent)}
+.pause-button:focus{outline:2px solid rgba(0,212,166,0.18);box-shadow:0 0 0 4px rgba(0,212,166,0.06)}
+.undo-button{display:inline-flex;align-items:center;justify-content:center;width:40px;height:36px;border-radius:8px;border:none;background:rgba(255,255,255,0.04);color:var(--muted);cursor:pointer;margin-right:6px}
+.undo-button:hover{background:rgba(255,255,255,0.06);color:var(--accent)}
+.search-select{position:relative;width:300px;min-width:180px;margin-right:6px}
+.search-select input{width:97%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:rgba(0,0,0,0.22);color:inherit}
+.search-select-dropdown{position:absolute;right:0;top:44px;width:100%;max-height:320px;overflow:auto;background:rgba(20,28,36,0.88);backdrop-filter:blur(6px);border-radius:8px;border:1px solid rgba(255,255,255,0.04);box-shadow:var(--card-shadow);z-index:80}
 .search-select-item{padding:8px;border-bottom:1px solid rgba(255,255,255,0.02);cursor:pointer}
 .search-select-item:hover{background:rgba(255,255,255,0.02)}
+.search-select-item.highlighted{background:rgba(0,212,166,0.08);color:var(--accent)}
 .no-results{padding:8px;color:var(--muted)}
 .draft-button{padding:8px 12px;border-radius:8px;border:none;background:var(--accent);color:#022;font-weight:800;cursor:pointer}
 .draft-button:disabled{opacity:0.45;cursor:default}
+
+.add-player-button{display:inline-flex;align-items:center;justify-content:center;width:40px;height:36px;border-radius:8px;border:none;background:rgba(0,212,166,0.12);color:var(--muted);cursor:pointer;margin-right:6px}
+.add-player-button:hover{background:rgba(0,212,166,0.18);color:#022}
+
+/* Modal styles */
+.modal-backdrop{position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(2,6,23,0.85);display:flex;align-items:center;justify-content:center;z-index:200}
+.modal-card{background:linear-gradient(180deg, rgba(6,10,18,0.98), rgba(10,14,22,0.98));padding:18px;border-radius:12px;width:360px;box-shadow:var(--card-shadow);border:1px solid rgba(255,255,255,0.04)}
+.modal-card h3{margin-top:0}
+.modal-card form{display:flex;flex-direction:column;gap:8px}
+.modal-card label{display:flex;flex-direction:column;font-size:13px;color:var(--muted)}
+.modal-card input,.modal-card select{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:rgba(6,10,18,0.9);color:inherit}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
+.modal-cancel-button{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);padding:8px 12px;border-radius:8px;cursor:pointer}
+.modal-cancel-button:hover{background:rgba(255,255,255,0.02);color:#fff}
 
 .players-panel{
   width:340px; /* a bit narrower to reclaim left space */
@@ -91,14 +141,33 @@ body{
 
 .team-column{background:var(--panel);border-radius:12px;padding:8px 0;min-width:calc(var(--calculated-card-min, var(--card-min)));border:1px solid rgba(255,255,255,0.03);display:flex;flex-direction:column}
 .team-column .team-name{font-weight:700;margin:8px 0;text-align:center;width:100%}
-.round-grid{display:grid;gap:10px;padding:0 8px} /* slightly larger gap between rows for breathing room */
+.round-grid{display:grid;gap:10px;padding:0 4px} /* slightly larger gap between rows for breathing room */
 
-.card-empty{border:2px dashed rgba(255,255,255,0.06);border-radius:8px;padding:10px;min-height:84px;display:flex;align-items:center;justify-content:center;color:var(--muted);background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent)}
+.round-column{background:transparent;border-radius:12px;padding:8px 0;display:flex;flex-direction:column;align-items:center}
+.round-column .round-grid{display:grid;gap:10px;padding:0 8px;width:100%}
+.round-label{height:128px;display:flex;align-items:center;justify-content:center;color:var(--muted);border-radius:8px}
 
-.draft-card{border-radius:10px;padding:10px;min-height:80px;background:linear-gradient(180deg,#072033 0%, #0b2a40 100%);box-shadow:var(--card-shadow);border:1px solid rgba(255,255,255,0.04);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;max-width:calc(calc(var(--calculated-card-min, var(--card-min))) - 10px);width:100%;box-sizing:border-box;margin:0 auto}
-.draft-card img{width:40px;height:40px;border-radius:50%;object-fit:cover;margin-bottom:6px}
-.draft-card .player-name{font-weight:700}
-.draft-card .player-meta{font-size:12px;color:var(--muted);margin-top:4px}
+.card-empty{border:2px dashed rgba(255,255,255,0.06);border-radius:8px;padding:14px;height:128px;display:flex;align-items:center;justify-content:center;color:var(--muted);background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent);box-sizing:border-box}
+
+.draft-card{border-radius:10px;padding:5px 10px 10px 10px;height:128px;background:linear-gradient(180deg,#072033 0%, #0b2a40 100%);box-shadow:var(--card-shadow);border:1px solid rgba(255,255,255,0.04);display:flex;flex-direction:column;align-items:center;justify-content:space-between;text-align:center;max-width:calc(calc(var(--calculated-card-min, var(--card-min))) - 10px);width:100%;box-sizing:border-box;margin:0 auto}
+.draft-card img{width:44px;height:44px;border-radius:50%;object-fit:cover;margin:0 auto}
+.draft-card .player-name{font-weight:700;display:block;width:100%;margin-top:8px}
+.player-first, .player-last{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;width:100%}
+.draft-card .player-meta{font-size:12px;color:rgba(230,238,246,0.92);margin-top:8px;align-self:stretch;text-align:center;margin-bottom:6px;text-shadow:0 1px 0 rgba(2,6,23,0.5)}
+
+/* ensure readable meta text on light/yellow backgrounds */
+.draft-card.pos-L .player-meta{color:#1a1a1a;text-shadow:none}
+
+/* Position badge */
+.draft-card.pos-G{background:linear-gradient(180deg,#2a1052 0%, #6d28d9 60%);border-color:rgba(167,139,250,0.18);}
+.draft-card.pos-D{background:linear-gradient(180deg,#042f2f 0%, #0ea5a4 60%);border-color:rgba(94,234,212,0.12);}
+.draft-card.pos-C{background:linear-gradient(180deg,#05204d 0%, #2563eb 60%);border-color:rgba(96,165,250,0.12);}
+.draft-card.pos-L{background:linear-gradient(180deg,#4a2e00 0%, #f59e0b 60%);border-color:rgba(253,230,138,0.12);}
+.draft-card.pos-R{background:linear-gradient(180deg,#3b0a0a 0%, #ef4444 60%);border-color:rgba(252,165,165,0.12);}
+.draft-card.pos-UNK{background:linear-gradient(180deg,#072033 0%, #0b2a40 100%);border-color:rgba(255,255,255,0.04)}
+.draft-card.pos-POOP{background:linear-gradient(180deg,#4b2e05 0%, #8b4513 60%);border-color:rgba(75,45,5,0.18)}
+
+.player-emoji{font-size:34px;line-height:44px;margin:0 auto}
 
 .timer-row{display:flex;align-items:center;gap:12px;margin-top:12px}
 .timer-ring{width:64px;height:64px;border-radius:50%;border:3px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-weight:800}
@@ -126,7 +195,7 @@ body{
   .top-right-controls{right:40px}
   .team-column{min-width:170px}
   .search-select{width:360px}
-  :root{--card-min:170px;--card-gap:12px}
+  :root{--card-min:150px;--card-gap:12px}
 }
 
 /* Small screens: move top-right controls into flow and shrink select */
@@ -134,12 +203,12 @@ body{
   .top-right-controls{position:relative;right:auto;top:auto;margin-bottom:12px;justify-content:flex-end}
   .search-select{width:240px}
   .draft-button{padding:6px 10px}
-  :root{--card-min:130px;--card-gap:10px}
+  :root{--card-min:120px;--card-gap:10px}
 }
 
 @media (max-width: 700px){
   .search-select{width:100%}
   .top-right-controls{justify-content:flex-start}
-  :root{--card-min:120px;--card-gap:8px}
+  :root{--card-min:110px;--card-gap:8px}
 }
 

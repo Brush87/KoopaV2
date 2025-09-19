@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
+import ConfirmModal from './ConfirmModal';
+import AddPlayerModal from './AddPlayerModal';
 import DraftCard from './DraftCard';
+import PlayerStatsModal from './PlayerStatsModal';
 
 // ...existing code...
 
@@ -32,6 +35,28 @@ function LandingPage({ onContinue }: { onContinue: (draftId: string) => void }) 
     }
     fetchDrafts();
   }, []);
+
+  const deleteDraft = async (draftId: string) => {
+    try {
+      const res = await fetch(`http://localhost:4000/drafts/${draftId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete draft');
+      // refresh list
+      const allDrafts = await (await fetch('http://localhost:4000/drafts')).json();
+      setDrafts(allDrafts.filter((d: any) => !d.completed));
+    } catch (err: any) {
+      window.alert(err.message || 'Error deleting draft');
+    }
+  };
+
+  // Modal control for confirming delete
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
+  const confirmDelete = (id: string) => setConfirmingDeleteId(id);
+  const cancelDelete = () => setConfirmingDeleteId(null);
+  const deleteDraftConfirmed = async () => {
+    if (!confirmingDeleteId) return;
+    await deleteDraft(confirmingDeleteId);
+    setConfirmingDeleteId(null);
+  };
 
   const handleTeamCountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const count = Math.max(2, Math.min(20, Number(e.target.value)));
@@ -97,6 +122,7 @@ function LandingPage({ onContinue }: { onContinue: (draftId: string) => void }) 
             <li key={draft.id || draft._id} style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 16 }}>
               <span>Draft ID: {draft.id || draft._id} {draft.name ? `| ${draft.name}` : ''}</span>
               <button onClick={() => onContinue(draft.id || draft._id)}>Continue</button>
+              <button style={{ marginLeft: 8, background: '#e24d4d', color: '#fff', border: 'none', padding: '6px 10px', borderRadius: 6 }} onClick={() => confirmDelete(draft.id || draft._id)}>Delete</button>
             </li>
           ))}
         </ul>
@@ -123,6 +149,15 @@ function LandingPage({ onContinue }: { onContinue: (draftId: string) => void }) 
           {createError && <p style={{ color: 'red' }}>{createError}</p>}
         </form>
       )}
+      {confirmingDeleteId && (
+        <ConfirmModal
+          message="Delete this draft? This cannot be undone."
+          confirmLabel="Delete"
+          cancelLabel="Cancel"
+          onConfirm={deleteDraftConfirmed}
+          onCancel={cancelDelete}
+        />
+      )}
     </div>
   );
 }
@@ -130,7 +165,7 @@ function LandingPage({ onContinue }: { onContinue: (draftId: string) => void }) 
 function App() {
   // Timer constants
   const PICK_TIME = 90; // seconds
-  const ROUNDS = 16;
+  const ROUNDS = 18;
   // State for draft selection
   const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
   const [teamNames, setTeamNames] = useState<string[]>([]);
@@ -142,8 +177,16 @@ function App() {
   const [selectedPlayer, setSelectedPlayer] = useState<any | null>(null);
   const [timer, setTimer] = useState(PICK_TIME);
   const [timerActive, setTimerActive] = useState(true);
+  const [paused, setPaused] = useState(false);
+  const pausedRef = useRef(paused);
+  useEffect(() => { pausedRef.current = paused; }, [paused]);
+  const [autoDraftedForPick, setAutoDraftedForPick] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(false);
+  const [statsPlayerId, setStatsPlayerId] = useState<string | number | null>(null);
+  const [statsPlayerName, setStatsPlayerName] = useState<string | undefined>(undefined);
 
   // When a draft is selected, fetch draft info and players
   useEffect(() => {
@@ -248,16 +291,52 @@ function App() {
   // Timer countdown effect
   useEffect(() => {
     if (!timerActive) return;
+    if (paused) return;
     if (availablePlayers.length === 0) return;
     const interval = setInterval(() => {
       setTimer(prev => prev - 1);
     }, 1000);
     return () => clearInterval(interval);
-  }, [timerActive, availablePlayers.length]);
+  }, [timerActive, availablePlayers.length, paused]);
 
-  // Reset timer on pick
+  // Auto-draft special POOP player when timer reaches -30s for a pick (once per pick)
   useEffect(() => {
+    if (timer > -30) return;
+    if (paused) return; // don't auto-draft while paused
+    // If we've already auto-drafted for this pick number, skip
+    if (autoDraftedForPick === picksMade) return;
+
+    // create special POOP player
+    const poopPlayer = {
+      id: `poop-${Date.now()}`,
+      firstName: { default: 'Kyle' },
+      lastName: { default: 'Wellwood' },
+      positionCode: 'POOP',
+      team: 'POOP',
+      headshot: '',
+      emoji: '💩'
+    };
+
+    // Draft it for the current team
+    (async () => {
+      try {
+        await draftPlayer(poopPlayer);
+      } catch (e) {
+        // Ensure we still mark as auto-drafted to avoid loops
+        console.error('Auto-draft failed', e);
+      } finally {
+        setAutoDraftedForPick(picksMade);
+      }
+    })();
+  }, [timer, picksMade, autoDraftedForPick, paused]);
+
+  // Reset timer on pick. We intentionally do NOT add `paused` to the deps
+  // so that toggling pause/resume doesn't trigger a reset. Use a ref
+  // to observe paused state at the time the pick changes.
+  useEffect(() => {
+    if (pausedRef.current) return; // preserve timer when paused
     setTimer(PICK_TIME);
+    // auto-start the timer
     setTimerActive(true);
   }, [currentTeamIdx]);
 
@@ -298,6 +377,62 @@ function App() {
     setTimerActive(true);
   };
 
+  // Undo (remove) the last pick and return player to available pool
+  const undoLastPick = async () => {
+    if (!selectedDraftId) return;
+    if (picksMade <= 0) return;
+    const lastPick = picksMade - 1; // 0-based
+    const teamCount = teamNames.length || 1;
+    const round = Math.floor(lastPick / teamCount);
+    const pos = lastPick % teamCount;
+    const managerPosition = (round % 2 === 1) ? (teamCount - 1 - pos) : pos;
+
+    try {
+      const res = await fetch(`http://localhost:4000/drafts/${selectedDraftId}/undraft`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ managerPosition, pickIndex: undefined })
+      });
+      if (!res.ok) throw new Error('Failed to undo pick');
+      const data = await res.json();
+      const removed = data.removed;
+      if (!removed) return;
+
+      // Update local draftedPlayers: remove the player from managerPosition
+      setDraftedPlayers(prev => {
+        const copy: {[k: number]: any[]} = { ...prev };
+        const arr = (copy[managerPosition] || []).slice();
+        // Remove by id if exists
+        const idx = arr.findIndex(p => p && p.id === removed.id);
+        if (idx >= 0) arr.splice(idx, 1);
+        else arr.pop();
+        copy[managerPosition] = arr;
+        return copy;
+      });
+
+      // Return player to availablePlayers if not already present
+      // BUT do not re-add the special POOP auto-draft player to the pool
+      setAvailablePlayers(prev => {
+        if (!removed) return prev;
+        if (removed.positionCode === 'POOP') return prev;
+        if (prev.find(p => p && p.id === removed.id)) return prev;
+        return [removed, ...prev];
+      });
+
+      // Adjust picksMade and currentTeamIdx
+      setPicksMade(prev => {
+        const next = Math.max(0, prev - 1);
+        const nextRound = Math.floor(next / teamCount);
+        const nextPos = next % teamCount;
+        const nextIdx = (nextRound % 2 === 1) ? (teamCount - 1 - nextPos) : nextPos;
+        setCurrentTeamIdx(nextIdx);
+        return next;
+      });
+    } catch (err) {
+      console.error('Undo failed', err);
+    }
+  };
+
   // Landing page logic
   if (!selectedDraftId) {
     return <LandingPage onContinue={setSelectedDraftId} />;
@@ -325,6 +460,14 @@ function App() {
   let timerColor = '#222';
   if (timer < 0) timerColor = 'red';
   else if (timer < 15) timerColor = 'orange';
+
+  // progress for ring: from PICK_TIME down to -30 => totalDuration
+  const totalDuration = PICK_TIME + 30; // e.g., 90 + 30 = 120
+  const elapsed = PICK_TIME - timer; // how many seconds elapsed since start of pick
+  const progress = Math.min(1, Math.max(0, elapsed / totalDuration));
+  const RING_RADIUS = 30;
+  const RING_CIRC = 2 * Math.PI * RING_RADIUS;
+  const ringOffset = RING_CIRC * (1 - progress);
 
   // Edge case: all players drafted
   if (availablePlayers.length === 0) {
@@ -378,8 +521,54 @@ function App() {
       </div>
       {/* top-right controls: searchable select + Draft button */}
       <div className="top-right-controls">
-        <SearchSelect options={uniquePlayers} onSelect={p => setSelectedPlayer(p)} />
-        <button className="draft-button" disabled={!selectedPlayer} onClick={() => {
+        <button
+          className="add-player-button"
+          title="Add new player"
+          aria-label="Add new player"
+          onClick={() => setAddModalOpen(true)}
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+            <path fill="currentColor" d="M19 13H13v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+          </svg>
+        </button>
+        <button
+          className="undo-button"
+          title="Undo last pick"
+          aria-label="Undo last pick"
+          onClick={async () => {
+            await undoLastPick();
+          }}
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+            <path fill="currentColor" d="M12 5V1L7 6l5 5V7c3.86 0 7 3.14 7 7a7 7 0 01-7 7 7 7 0 01-7-7H3a9 9 0 009 9 9 9 0 009-9c0-4.97-4.03-9-9-9z" />
+          </svg>
+        </button>
+        <button
+          className="pause-button"
+          onClick={() => { setPaused(p => !p); }}
+          aria-pressed={paused}
+          aria-label={paused ? 'Resume draft timer' : 'Pause draft timer'}
+          title={paused ? 'Resume' : 'Pause'}
+        >
+          {paused ? (
+            // Play icon for resume
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+              <path fill="currentColor" d="M8 5v14l11-7z" />
+            </svg>
+          ) : (
+            // Pause icon
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+              <path fill="currentColor" d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+            </svg>
+          )}
+        </button>
+        <SearchSelect
+          options={uniquePlayers}
+          selected={selectedPlayer}
+          onSelect={p => setSelectedPlayer(p)}
+          onEnter={(p: any) => { if (p) { draftPlayer(p); setSelectedPlayer(null); } }}
+        />
+        <button className="draft-button" disabled={!selectedPlayer || paused} onClick={() => {
           if (selectedPlayer) {
             draftPlayer(selectedPlayer);
             setSelectedPlayer(null);
@@ -387,27 +576,78 @@ function App() {
         }}>Draft</button>
       </div>
 
+      <AddPlayerModal
+        open={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        onCreate={(player: any) => {
+          // Add and immediately draft to current team
+          // Ensure the player exists in the available pool and then draft
+          setAvailablePlayers(prev => [player, ...prev]);
+          draftPlayer(player);
+        }}
+      />
+
       <div className="main-layout">
         {/* Draft Board */}
         <div className="board-panel">
           {/* Timer moved above the board */}
-          <div className="timer-row timer-above">
-            <strong>Current Team: </strong>
-            <div>{teamNames[currentTeamIdx]}</div>
-            <div className={`timer-ring ${timer < 0 ? 'red' : timer < 15 ? 'orange' : ''}`} style={{ color: timer < 0 ? '#ffdddd' : timer < 15 ? '#fff4e6' : 'inherit' }}>
-              {timer >= 0 ? timer : `-${Math.abs(timer)}`}s
+          <div className="timer-row timer-above header-with-timer">
+            <div style={{ flex: 1, textAlign: 'left' }}>
+              <div className="current-team-label">Current Team</div>
+              <div className="current-team-name">{teamNames[currentTeamIdx]}</div>
+            </div>
+            <div style={{ width: 92, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+              {timer < 0 && <div className="beats-left">BEATS</div>}
+              <div className={`timer-ring ${timer < 0 ? 'red' : timer < 15 ? 'orange' : ''}`} style={{ color: timer < 0 ? '#ff4444' : timer < 15 ? '#fff4e6' : 'inherit' }}>
+                <svg width="72" height="72" viewBox="0 0 72 72">
+                  <defs />
+                  <g transform="translate(36,36)">
+                    <circle r="30" cx="0" cy="0" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
+                    <circle r="30" cx="0" cy="0" fill="none" stroke="currentColor" strokeWidth={6} strokeDasharray={RING_CIRC} strokeDashoffset={ringOffset} strokeLinecap="round" transform="rotate(-90)" />
+                  </g>
+                </svg>
+                <div className="timer-label">{timer >= 0 ? timer : `-${Math.abs(timer)}`}s</div>
+              </div>
+              {timer < 0 && <div className="beats-right">BEATS</div>}
+            </div>
+            <div style={{ flex: 1, textAlign: 'right' }}>
+              <div className="current-pick-label">Current Pick</div>
+              <div className="current-pick-value">{picksMade + 1}</div>
             </div>
           </div>
           <h3>Draft Board</h3>
-          <div className="board-columns" style={{ gridTemplateColumns: `repeat(${teamNames.length}, minmax(140px, 1fr))` }}>
+          <div className="board-columns" style={{ gridTemplateColumns: `minmax(80px, 80px) repeat(${teamNames.length}, minmax(140px, 1fr))` }}>
+            <div className="round-column">
+              <div style={{padding:8}} />
+              <div className="round-grid">
+                {Array.from({ length: ROUNDS }).map((_, roundIdx) => (
+                  <div key={`round-label-${roundIdx}`} className="round-label">Round {roundIdx + 1}</div>
+                ))}
+              </div>
+            </div>
             {teamNames.map((team, idx) => (
               <div key={idx} className="team-column">
                 <div className="team-name">{team}</div>
                 <div className="round-grid">
-                  {Array.from({ length: ROUNDS }).map((_, round) => (
-                    <DraftCard key={`team${idx}-round${round}-player${(draftedPlayers[idx]||[])[round]?.id ?? round}`}
-                      player={(draftedPlayers[idx] || [])[round]} />
-                  ))}
+                  {Array.from({ length: ROUNDS }).map((_, round) => {
+                    const teamCount = teamNames.length || 1;
+                    const pos = (round % 2 === 1) ? (teamCount - 1 - idx) : idx;
+                    const overallPick = (round * teamCount) + pos + 1; // 1-based
+                    const playerAtSlot = (draftedPlayers[idx] || [])[round];
+                    return (
+                      <div key={`team${idx}-round${round}-player${playerAtSlot?.id ?? round}`} onClick={() => {
+                        if (playerAtSlot && (playerAtSlot.id || playerAtSlot._id)) {
+                          const pid = playerAtSlot.id || playerAtSlot._id;
+                          setStatsPlayerId(pid);
+                          const name = `${playerAtSlot.firstName?.default || ''} ${playerAtSlot.lastName?.default || ''}`.trim();
+                          setStatsPlayerName(name || undefined);
+                          setStatsOpen(true);
+                        }
+                      }} style={{ cursor: playerAtSlot ? 'pointer' : 'default' }}>
+                        <DraftCard player={playerAtSlot} pickNumber={overallPick} />
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ))}
@@ -416,6 +656,7 @@ function App() {
           {/* original inline timer removed; timer now displayed above the board */}
         </div>
       </div>
+      <PlayerStatsModal open={statsOpen} onClose={() => setStatsOpen(false)} playerId={statsPlayerId || ''} playerName={statsPlayerName} />
     </div>
   );
 }
@@ -427,11 +668,21 @@ type SearchSelectProps = {
   options: any[];
   onSelect: (p: any) => void;
   placeholder?: string;
+  selected?: any | null;
+  onEnter?: (p: any | null) => void;
 };
 
-export const SearchSelect: React.FC<SearchSelectProps> = React.memo(function SearchSelect({ options, onSelect, placeholder = 'Search players...' }) {
+export const SearchSelect: React.FC<SearchSelectProps> = React.memo(function SearchSelect({ options, onSelect, placeholder = 'Search players...', selected = null, onEnter }) {
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false);
+  const inputRef = React.useRef<HTMLInputElement | null>(null);
+
+  // Clear the input when selected becomes null (e.g., after drafting)
+  useEffect(() => {
+    if (!selected) {
+      setQ('');
+    }
+  }, [selected]);
 
   const results = options.filter(p => {
     const first = typeof p.firstName?.default === 'string' ? p.firstName.default.toLowerCase() : '';
@@ -440,19 +691,65 @@ export const SearchSelect: React.FC<SearchSelectProps> = React.memo(function Sea
     return first.includes(qq) || last.includes(qq);
   }).slice(0, 30);
 
+  const [highlight, setHighlight] = useState<number>(-1);
+
+  useEffect(() => {
+    // reset highlight when results change
+    setHighlight(results.length > 0 ? 0 : -1);
+  }, [q, results.length]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (onEnter) {
+        const chosen = (highlight >= 0 && results[highlight]) ? results[highlight] : (selected || results[0] || null);
+        if (chosen) {
+          // notify parent of selection
+          onSelect(chosen);
+          onEnter(chosen);
+        } else {
+          onEnter(null);
+        }
+        setOpen(false);
+      }
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (results.length === 0) return;
+      setOpen(true);
+      setHighlight(h => Math.min(results.length - 1, Math.max(0, h + 1)));
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (results.length === 0) return;
+      setOpen(true);
+      setHighlight(h => Math.max(0, h - 1));
+      return;
+    }
+  };
+
   return (
     <div className="search-select">
       <input
+        ref={inputRef}
         placeholder={placeholder}
         value={q}
         onChange={e => { setQ(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onKeyDown={handleKeyDown}
       />
       {open && q && (
         <div className="search-select-dropdown">
-          {results.length === 0 ? <div className="no-results">No players</div> : results.map((p: any) => (
-            <div key={p.id} className="search-select-item" onMouseDown={() => { onSelect(p); setQ((p.firstName?.default || '') + ' ' + (p.lastName?.default || '')); setOpen(false); }}>
+          {results.length === 0 ? <div className="no-results">No players</div> : results.map((p: any, idx: number) => (
+            <div
+              key={p.id}
+              className={`search-select-item${idx === highlight ? ' highlighted' : ''}`}
+              onMouseDown={() => { onSelect(p); setQ((p.firstName?.default || '') + ' ' + (p.lastName?.default || '')); setOpen(false); }}
+              onMouseEnter={() => setHighlight(idx)}
+            >
               {p.firstName?.default} {p.lastName?.default}
             </div>
           ))}
