@@ -83,6 +83,36 @@ body {
   -webkit-text-fill-color: transparent;
 }
 
+.download-draft-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 12px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.download-draft-btn:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.25);
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
+}
+
+.download-draft-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-muted);
+}
+
 .nav-controls {
   display: flex;
   align-items: center;

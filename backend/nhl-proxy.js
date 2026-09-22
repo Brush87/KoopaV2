@@ -104,6 +104,35 @@ async function findDraftDoc(id) {
   return draft ? { query, draft } : null;
 }
 
+function generateDraftResultsText(draft) {
+  const managers = Array.isArray(draft.managers) ? draft.managers : [];
+  const lines = [];
+  lines.push(`Draft Results for: ${draft.name || (draft.id || draft._id)}`);
+  lines.push(`Completed: ${draft.completedAt ? new Date(draft.completedAt).toLocaleString() : new Date().toLocaleString()}`);
+  lines.push('');
+
+  managers.forEach((m, idx) => {
+    lines.push(`${m.name || `Team ${idx + 1}`}:`);
+    const players = Array.isArray(m.players) ? m.players : [];
+    if (players.length === 0) {
+      lines.push('  (No players drafted)');
+    } else {
+      players.forEach((p, i) => {
+        const first = p.firstName?.default || p.firstName || '';
+        const last = p.lastName?.default || p.lastName || '';
+        const name = `${first} ${last}`.trim() || p.id || 'Unknown';
+        const pos = p.positionCode || p.position || '??';
+        const team = p.team || p.teamName || '';
+        const teamStr = team ? ` — ${team}` : '';
+        lines.push(`  Round ${i + 1}: ${name} (${pos}${teamStr})`);
+      });
+    }
+    lines.push('');
+  });
+
+  return lines.join('\n');
+}
+
 app.get('/players', async (req, res) => {
   try {
     const players = await db.collection('players').find({}).toArray();
@@ -233,41 +262,30 @@ app.post('/drafts/:id/complete', async (req, res) => {
     const match = await findDraftDoc(id);
     if (!match) return res.status(404).json({ error: 'Draft not found' });
 
-    const draft = match.draft;
     await db.collection('drafts').updateOne(match.query, {
       $set: { completed: true, completedAt: new Date() }
     });
 
-    const managers = Array.isArray(draft.managers) ? draft.managers : [];
-    const lines = [];
-    lines.push(`Draft Results for: ${draft.name || (draft.id || draft._id)}`);
-    lines.push(`Completed: ${new Date().toLocaleString()}`);
-    lines.push('');
-
-    managers.forEach((m, idx) => {
-      lines.push(`${m.name || `Team ${idx + 1}`}:`);
-      const players = Array.isArray(m.players) ? m.players : [];
-      if (players.length === 0) {
-        lines.push('  (No players drafted)');
-      } else {
-        players.forEach((p, i) => {
-          const first = p.firstName?.default || p.firstName || '';
-          const last = p.lastName?.default || p.lastName || '';
-          const name = `${first} ${last}`.trim() || p.id || 'Unknown';
-          const pos = p.positionCode || p.position || '??';
-          const team = p.team || p.teamName || '';
-          const teamStr = team ? ` — ${team}` : '';
-          lines.push(`  Round ${i + 1}: ${name} (${pos}${teamStr})`);
-        });
-      }
-      lines.push('');
-    });
-
-    const textBody = lines.join('\n');
+    const updatedMatch = await findDraftDoc(id);
+    const textBody = generateDraftResultsText(updatedMatch.draft);
     res.type('text/plain').send(textBody);
   } catch (err) {
     console.error('Complete draft failed', err);
     res.status(500).json({ error: 'Failed to complete draft' });
+  }
+});
+
+app.get('/drafts/:id/download', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const match = await findDraftDoc(id);
+    if (!match) return res.status(404).json({ error: 'Draft not found' });
+
+    const textBody = generateDraftResultsText(match.draft);
+    res.type('text/plain').send(textBody);
+  } catch (err) {
+    console.error('Download draft results failed', err);
+    res.status(500).json({ error: 'Failed to download draft results' });
   }
 });
 

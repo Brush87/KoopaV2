@@ -192,6 +192,7 @@ function App() {
 
   const [draftCompleted, setDraftCompleted] = useState(false);
   const [autoDraftedForPick, setAutoDraftedForPick] = useState<number | null>(null);
+  const [downloading, setDownloading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
@@ -280,7 +281,7 @@ function App() {
         const count = Math.max(1, teamNames.length || 10);
         const gap = Number(getComputedStyle(el).getPropertyValue('--card-gap')) || 10;
         const totalGaps = Math.max(0, count - 1) * gap;
-        const reserved = 120; // reserve space for rounds sidebar & padding
+        const reserved = 120;
         const available = Math.max(100, containerWidth - totalGaps - reserved);
         const perCol = Math.max(110, Math.floor(available / count));
         el.style.setProperty('--calculated-card-min', perCol + 'px');
@@ -312,7 +313,6 @@ function App() {
     if (timer > -30 || paused || draftCompleted) return;
     if (autoDraftedForPick === picksMade) return;
 
-    // Set flag immediately to prevent re-entry loop
     setAutoDraftedForPick(picksMade);
 
     const poopPlayer = {
@@ -344,7 +344,6 @@ function App() {
     const currentPicks = picksMade;
     const teamCount = teamNames.length || 1;
 
-    // Update frontend state synchronously
     setAvailablePlayers(prev => prev.filter(p => p.id !== player.id));
     setDraftedPlayers(prev => {
       const teamDrafts = prev[managerIdx] || [];
@@ -362,7 +361,6 @@ function App() {
     setTimer(PICK_TIME);
     setTimerActive(true);
 
-    // 1. Persist pick to backend
     if (selectedDraftId) {
       try {
         await fetch(`${API_BASE}/drafts/${selectedDraftId}/draft`, {
@@ -375,7 +373,6 @@ function App() {
       }
     }
 
-    // 2. Check draft completion (AFTER pick is persisted)
     const totalPicksPossible = ROUNDS * teamCount;
     if (nextPickNum >= totalPicksPossible) {
       setDraftCompleted(true);
@@ -384,16 +381,38 @@ function App() {
 
       if (selectedDraftId) {
         try {
-          const res = await fetch(`${API_BASE}/drafts/${selectedDraftId}/complete`, { method: 'POST' });
-          if (res.ok) {
-            const text = await res.text();
-            const filename = (draftName || 'draft-results').replace(/[^a-z0-9\-_. ]/ig, '') + '.txt';
-            downloadTextFile(filename, text);
-          }
+          await fetch(`${API_BASE}/drafts/${selectedDraftId}/complete`, { method: 'POST' });
         } catch (e) {
-          console.error('Failed to complete draft', e);
+          console.error('Failed to mark draft completed', e);
         }
       }
+    }
+  };
+
+  const handleDownloadDraft = async () => {
+    if (!selectedDraftId || !draftCompleted || downloading) return;
+    setDownloading(true);
+    try {
+      let text = '';
+      const res = await fetch(`${API_BASE}/drafts/${selectedDraftId}/download`);
+      if (res.ok) {
+        text = await res.text();
+      } else {
+        const fallbackRes = await fetch(`${API_BASE}/drafts/${selectedDraftId}/complete`, { method: 'POST' });
+        if (fallbackRes.ok) {
+          text = await fallbackRes.text();
+        } else {
+          throw new Error('Failed to fetch draft results');
+        }
+      }
+
+      const filename = (draftName || 'draft-results').replace(/[^a-z0-9\-_. ]/ig, '') + '.txt';
+      downloadTextFile(filename, text);
+    } catch (e: any) {
+      console.error('Download draft failed', e);
+      alert('Failed to download draft results.');
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -507,6 +526,18 @@ function App() {
         <div className="nav-brand">
           <span className="brand-icon">🏒</span>
           <span className="brand-title">{draftName || 'Fantasy Draft Board'}</span>
+
+          <button
+            className="download-draft-btn"
+            disabled={!draftCompleted || downloading}
+            onClick={handleDownloadDraft}
+            title={draftCompleted ? 'Download Draft Results (.txt)' : 'Draft must be completed to download results'}
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            <span>{downloading ? 'Downloading...' : 'Download Draft'}</span>
+          </button>
         </div>
 
         <div className="nav-controls">
