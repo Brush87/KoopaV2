@@ -34,7 +34,7 @@ async function fetchAllPlayers() {
 
 async function main() {
   const { v4: uuidv4 } = await import('uuid');
-  const client = await MongoClient.connect(mongoUri, { useUnifiedTopology: true });
+  const client = await MongoClient.connect(mongoUri);
   const db = client.db();
   const players = await fetchAllPlayers();
   await db.collection('players').deleteMany({});
