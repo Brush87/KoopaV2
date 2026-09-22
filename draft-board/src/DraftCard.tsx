@@ -9,16 +9,16 @@ const DraftCard: React.FC<DraftCardProps> = ({ player, pickNumber }) => {
   if (!player) {
     return (
       <div className="card-empty">
-        <span>Pick {pickNumber ?? '—'}</span>
+        <span className="empty-pick-num">#{pickNumber ?? '—'}</span>
       </div>
     );
   }
-  // Picture URL from player.headshot or player.headshot.url or fallback
-  let pic = player.headshot?.url || player.headshot || '';
-  // Prefer explicit positionCode; provide a small fallback mapping
+
+  const pic = player.headshot?.url || (typeof player.headshot === 'string' ? player.headshot : '');
   const rawPos = (player.positionCode || player.position || '') as string;
   const normalize = (s: any) => String(s || '').trim();
   let posCode = normalize(rawPos).toUpperCase();
+
   if (!posCode) {
     const posName = normalize(player.position?.default || player.position);
     const p = posName.toLowerCase();
@@ -30,24 +30,38 @@ const DraftCard: React.FC<DraftCardProps> = ({ player, pickNumber }) => {
     else posCode = (posName.charAt(0) || '').toUpperCase();
   }
 
-  // sanitize for classname
   const posClass = posCode.replace(/[^A-Z0-9]/g, '') || 'UNK';
-
-  // Display RW / LW for right/left wings when appropriate, but keep posClass as R/L for styling
   const givenPos = (player.positionCode || posCode || '').toString();
   let displayPos = givenPos;
   if (givenPos === 'R') displayPos = 'RW';
   if (givenPos === 'L') displayPos = 'LW';
 
+  const firstName = player.firstName?.default || player.firstName || '';
+  const lastName = player.lastName?.default || player.lastName || '';
+  const team = player.team || player.teamName || 'UNK';
+
   return (
     <div className={`draft-card pos-${posClass}`}>
-      {pic ? <img src={pic} alt="headshot" /> : (player.emoji ? <div className="player-emoji" aria-hidden>{player.emoji}</div> : null)}
-      <div className="player-name">
-        <div className="player-first">{player.firstName?.default}</div>
-        <div className="player-last">{player.lastName?.default}</div>
+      <div className="card-top">
+        {pic ? (
+          <img src={pic} alt="headshot" className="player-headshot" />
+        ) : player.emoji ? (
+          <div className="player-emoji" aria-hidden>{player.emoji}</div>
+        ) : (
+          <div className="player-avatar-fallback">{firstName.charAt(0)}{lastName.charAt(0)}</div>
+        )}
       </div>
 
-  <div className="player-meta">{player.team} | {displayPos}</div>
+      <div className="player-name">
+        <div className="player-first">{firstName}</div>
+        <div className="player-last">{lastName}</div>
+      </div>
+
+      <div className="player-meta">
+        <span className="meta-team">{team}</span>
+        <span className="meta-divider">•</span>
+        <span className="meta-pos">{displayPos}</span>
+      </div>
     </div>
   );
 };
