@@ -1,112 +1,167 @@
-🏒 KoopaV2 Application Overview
-===========================
+# 🏒 KoopaV2 — Fantasy Hockey Draft Board & Management Platform
 
-Hello Bronco 👋,
-
-This document provides a comprehensive summary of the KoopaV2 application, including its purpose, architecture, technology stack, deployment, and usage. ✨
+Welcome to **KoopaV2**, a modern, web-based fantasy hockey draft board application. This repository provides a real-time, responsive draft experience supporting custom league setups, automated timer controls, player statistical deep dives via the official NHL API, undraft/undo capabilities, and plain-text draft summary exports.
 
 ---
 
-## Purpose 🎯
+## 🏗️ Architecture & Technology Stack
 
-KoopaV2 is a web-based fantasy hockey draft board and management tool. It enables users to create, manage, and complete fantasy drafts, track player selections, and download final draft results. The app is designed for real-time draft sessions and supports custom player additions, undo/redo, and a responsive, user-friendly interface. 🧩
-
----
-
-## Architecture 🏗️
-
-- **Frontend:** React (TypeScript, Create React App) ⚛️
-  - Handles all user interactions, draft logic, and UI rendering 🖥️
-  - Communicates with backend via REST API 🔁
-  - Responsive design for desktop and mobile 📱💻
-- **Backend:** Node.js (Express) 🚀
-  - Provides REST endpoints for drafts, players, and NHL stats proxy 🔌
-  - Connects to MongoDB for persistence 🗄️
-  - Handles draft completion and returns downloadable results 📥
-- **Database:** MongoDB (Atlas or local) 🌩️
-  - Stores player pool, draft state, and manager data 📚
+* **Frontend**: React (TypeScript, Create React App)
+  * **Styling**: Modern CSS3 with glassmorphism, responsive grid layouts, sticky navigation bars, and custom HSL position badge theme.
+  * **State & Communication**: React Hooks, REST API calls (`fetch`), custom search/select input, modal overlays.
+* **Backend**: Node.js & Express
+  * **API Layer**: REST endpoints handling draft creation, pick updates, undraft requests, results exports, and NHL proxy calls.
+  * **Database Driver**: Official MongoDB Node.js Driver with automated fallback to `mongodb-memory-server` for zero-config local development.
+* **Database**: MongoDB Atlas (Cloud) / Local MongoDB
+  * **Collections**: `players` (master player pool) and `drafts` (live draft states and manager rosters).
+* **External Integrations**:
+  * **NHL Stats & Roster APIs**: Fetches active team rosters and merges `/skater/summary` and `/skater/realtime` statistical data on demand.
+* **Deployment**:
+  * **Backend**: Render (Node.js Web Service)
+  * **Frontend**: Vercel (Create React App Static Build)
 
 ---
 
-## Technology Stack 🧰
+## ⭐ Core Features
 
-- **Frontend:**
-  - React, TypeScript, CSS Modules ⚛️📝
-  - Environment variable: `REACT_APP_API_URL` for backend base URL 🌐
-- **Backend:**
-  - Node.js, Express, MongoDB driver 🟢
-  - Environment variable: `MONGO_URI` for database connection 🔒
-  - NHL stats proxy fetches live data for player stats modal 📊
-- **Deployment:**
-  - MongoDB Atlas (cloud DB) ☁️
-  - Render (backend hosting) 🚢
-  - Vercel (frontend hosting) 🚀
+1. **Flexible League Setup**:
+   * Create drafts with 2 to 20 teams and custom team names.
+   * View, resume, or delete active drafts from the landing dashboard.
 
----
+2. **Snake-Draft Board Engine**:
+   * Auto-calculates overall pick numbers and active team turn order across 18 rounds.
+   * Highlights the current team "on the clock" with active glowing column indicators.
+   * Supports responsive horizontal scrolling with a sticky round indicator sidebar for wide draft boards.
 
-## Key Features ⭐
+3. **Timer & Auto-Draft (Kyle Wellwood `💩` Tradition)**:
+   * 90-second countdown timer per pick with visual circular progress ring.
+   * Plays animated "BEATS" indicator during overtime.
+   * Automatically drafts the special Kyle Wellwood `💩` placeholder at -30s if time expires.
 
-- Create and join fantasy drafts with custom team names 🏷️
-- Add new players to the draft pool ➕🧑‍💼
-- Real-time draft board with pick timer and auto-draft ⏱️🤖
-- Undo/redo last pick ↩️↪️
-- Player stats modal with live NHL data 📈🏒
-- Downloadable plain-text results at draft completion (includes player team info) 📄⬇️
-- Responsive, modern UI with centered landing page and form 🎨🖼️
+4. **Player Stats Deep-Dive Modal**:
+   * Click any drafted card to view full season-by-season career statistics.
+   * Merges skater summary metrics (Goals, Assists, Points, +/-, ToI, STG, STP) with physical metrics (Hits, Blocks).
+   * Supports goalie-specific statistics (Wins, Saves, Shutouts, Save Percentage).
 
----
+5. **Undraft / Undo Capabilities**:
+   * Easily undo the previous pick at any time to return the player to the available pool.
 
-## File/Folder Structure 📁
+6. **On-Demand Draft Results Download**:
+   * Header `Download Draft` button lights up green upon draft completion.
+   * Downloads a formatted `.txt` text file breaking down every round and manager roster.
 
-- `draft-board/` — Frontend React app ⚛️
-  - `src/App.tsx` — Main app logic, landing page, draft board 🧭
-  - `src/AddPlayerModal.tsx` — Modal for adding new players ➕
-  - `src/PlayerStatsModal.tsx` — Modal for viewing player stats 📊
-  - `src/App.css` — Styles for landing, form, and board 🎨
-- `backend/` — Node.js API server 🛠️
-  - `nhl-proxy.js` — Express server, REST endpoints, NHL stats proxy 🔁
-  - `mongo-init.js` — Script to seed player data from NHL API 🌍
-  - `seed_one_away_draft.js` — Script to create a draft with one pick left 🕹️
-  - `package.json` — Backend dependencies and scripts 📦
+7. **Custom Player Addition**:
+   * Add custom players on-the-fly with position, team abbreviation, and emoji avatars.
 
 ---
 
-## Deployment & Configuration 🚦
+## 🛠️ Summary of Recent Refactoring & Improvements
 
-1. **MongoDB Atlas:** 🗄️
-  - Create a cluster and user, get the connection string for `MONGO_URI`. 🔑
-2. **Backend (Render):** 🚢
-  - Deploy `backend/` folder, set `MONGO_URI` and (optionally) `PORT`.
-  - Start command: `node nhl-proxy.js`. ▶️
-3. **Frontend (Vercel):** 🌍
-  - Deploy `draft-board/` folder, set `REACT_APP_API_URL` to backend URL.
-  - Build command: `npm run build`, output: `build/`.
-4. **Seeding:** 🧪
-  - Run `mongo-init.js` to populate players: 
-    ```sh
-    cd backend
-    MONGO_URI="<your-atlas-uri>" node mongo-init.js
-    ```
-  - Or run `npm run seed:one-away` for a test draft. 🧾
+### 1. Backend & Persistence Fixes
+* **Safe ObjectId & String Lookup**: Refactored `findDraftDoc(id)` in `backend/nhl-proxy.js` to safely attempt `new ObjectId(id)` within `try/catch` guards. Eliminates 500 server crashes for string or UUID draft IDs.
+* **Exact Undraft Logic**: Replaced MongoDB `$pull` with array splice manipulation in `PATCH /drafts/:id/undraft`. Undrafting now targets the exact last pick at the specified manager index without purging duplicate players.
+* **In-Memory Fallback & Auto-Seeding**: Added `mongodb-memory-server` fallback and an automated roster seeder. If local MongoDB is unreachable, the backend boots an in-memory database and populates 850+ NHL players automatically.
+* **Washington Capitals (`WSH`) Inclusion**: Corrected `NHL_TEAM_ABBRS` across all files to include all 32 NHL teams (fixing missing Washington Capitals players).
 
----
+### 2. NHL Stats Proxy & Modal Enhancements
+* **Hits & Blocks Data Merge**: Updated `GET /stats/:playerId` to fetch `/skater/summary` and `/skater/realtime` concurrently using `Promise.all` and join metrics by `seasonId`. Fixed "NO DATA" for Hits and Blocks.
+* **Time on Ice (ToI) Formatting**: Normalized raw seconds into clean `MM:SS` minute-second strings.
+* **Goalie Metric Mapping**: Properly mapped `savePct` / `savePctg`, `wins`, `saves`, and `shutouts`.
 
-## Usage 🚀
-
-1. Visit the deployed frontend URL. 🌐
-2. Create a new draft or join an existing one. 👥
-3. Enter team names and start the draft. 🏁
-4. Make picks, view player stats, and add new players as needed. 📝
-5. When the draft is complete, download the results as a `.txt` file. 📥
+### 3. Frontend & UI/UX Upgrade
+* **Sticky Glass Navbar**: Replaced fixed top-right overlay controls with a sticky, blurred glass navigation bar (`backdrop-filter: blur(16px)`).
+* **Position Badges & Typography**: Added vibrant HSL gradient styling for position badges (`C`, `D`, `G`, `LW`, `RW`, `POOP`) and integrated Google's *Outfit* and *Plus Jakarta Sans* typography.
+* **On-Demand Results Download**: Removed automatic pop-up downloads on completion (which were blocked by browser pop-up blockers) and added a dedicated `Download Draft` button in the navbar.
+* **Auto-Draft Loop Resolution**: Fixed dependency arrays and flags in `App.tsx` so auto-drafting Kyle Wellwood at -30s triggers once without infinite loops.
 
 ---
 
-## Notes 📝
+## 🗄️ Database Schema Reference
 
-- All API endpoints are environment-configurable for flexible deployment. ⚙️
-- The app is designed for easy local development and cloud deployment. 🧰
-- For more details, see `DEPLOY.md` in the repo. 📄
+### `players` Collection
+```json
+{
+  "_id": "66f07e5b...",
+  "id": 8478402,
+  "firstName": { "default": "Connor" },
+  "lastName": { "default": "McDavid" },
+  "team": "EDM",
+  "position": "forwards",
+  "positionCode": "C",
+  "sweaterNumber": 97,
+  "headshot": "https://assets.nhle.com/mugs/nhl/20242025/EDM/8478402.png",
+  "heightInInches": 73,
+  "weightInPounds": 193
+}
+```
+
+### `drafts` Collection
+```json
+{
+  "_id": "66f07f1a...",
+  "name": "2024 League Draft",
+  "completed": false,
+  "started": "2026-09-22T17:20:19.000Z",
+  "managers": [
+    {
+      "name": "Ice Titans",
+      "position": 1,
+      "players": [
+        {
+          "id": 8478402,
+          "firstName": { "default": "Connor" },
+          "lastName": { "default": "McDavid" },
+          "positionCode": "C",
+          "team": "EDM"
+        }
+      ]
+    }
+  ]
+}
+```
 
 ---
 
-Thank you, Bronco, for using KoopaV2! 🙏🏆
+## 🚀 Deployment Environment Variables
+
+### Backend (Render)
+* **Start Command**: `node nhl-proxy.js`
+* **Environment Variables**:
+  * `MONGO_URI`: `mongodb+srv://<user>:<password>@cluster.mongodb.net/koopa?retryWrites=true&w=majority`
+  * `PORT`: `4000`
+
+### Frontend (Vercel)
+* **Framework**: Create React App
+* **Build Command**: `npm run build`
+* **Output Directory**: `build`
+* **Environment Variables**:
+  * `REACT_APP_API_URL`: `https://<your-render-backend-service>.onrender.com`
+
+---
+
+## 💻 Local Development Commands
+
+### Start Backend API Server
+```bash
+cd backend
+npm install
+node nhl-proxy.js
+```
+
+### Start Frontend React App
+```bash
+cd draft-board
+npm install
+npm start
+```
+
+### Run Unit Tests & Production Build
+```bash
+cd draft-board
+npm test -- --watchAll=false
+npm run build
+```
+
+---
+
+*KoopaV2 is maintained and updated for modern fantasy hockey draft management.* 🏒🏆
